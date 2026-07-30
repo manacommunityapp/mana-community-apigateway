@@ -1,0 +1,43 @@
+server:
+  port: 8080
+  netty:
+    connection-timeout: 10000
+
+spring:
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: ${REDIS_SSL:false}
+
+gateway:
+  jwt:
+    secret: ${JWT_SECRET}
+  rate-limit:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 60s
+
+logging:
+  level:
+    root: WARN
+    com.manacommunity.gateway: INFO
+    org.springframework.cloud.gateway: WARN
+    org.springframework.security: WARN
+
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.05}
+  endpoint:
+    health:
+      show-details: never

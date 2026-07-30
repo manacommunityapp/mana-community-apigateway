@@ -1,0 +1,49 @@
+server:
+  port: 0
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  cloud:
+    gateway:
+      routes: []
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/test
+
+gateway:
+  jwt:
+    secret: dGVzdC1zZWNyZXQta2V5LWZvci11bml0LXRlc3RpbmctcHVycG9zZXMtb25seS1kb25vdHVzZQ==
+    expiration: 3600000
+    refresh-expiration: 86400000
+    issuer: test
+  security:
+    public-paths:
+      - /api/v*/auth/login
+      - /api/v*/auth/register
+      - /actuator/health
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /fallback/**
+      - /gateway/**
+  tenant:
+    header-name: X-Tenant-Id
+    default-tenant: test-tenant
+    supported-types:
+      - APARTMENT
+  rate-limit:
+    enabled: false
+
+management:
+  tracing:
+    sampling:
+      probability: 0.0
+
+logging:
+  level:
+    root: WARN
+    com.manacommunity.gateway: DEBUG

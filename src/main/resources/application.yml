@@ -1,0 +1,533 @@
+server:
+  port: 8080
+  netty:
+    connection-timeout: 30000
+    idle-timeout: 60000
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/plain
+    min-response-size: 1024
+
+spring:
+  application:
+    name: community-api-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # ── Redis ──────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: 3000
+
+  # ── Security ───────────────────────────────────────────────────────
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8180/realms/mana-community}
+
+  # ── Spring Cloud Gateway ───────────────────────────────────────────
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:4200}
+            allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+            allowed-headers: "*"
+            exposed-headers: X-Correlation-Id,X-Request-Id,X-RateLimit-Remaining,X-RateLimit-Limit,X-RateLimit-Reset
+            allow-credentials: true
+            max-age: 3600
+
+      routes:
+        # ── Identity / Auth Service ──────────────────────────────────
+        - id: identity-service
+          uri: ${IDENTITY_SERVICE_URL:http://identity-service:8080}
+          predicates:
+            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: identityCircuitBreaker
+                fallbackUri: forward:/fallback/identity
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Resident Service ─────────────────────────────────────────
+        - id: resident-service
+          uri: ${RESIDENT_SERVICE_URL:http://resident-service:8080}
+          predicates:
+            - Path=/api/v1/resident/**,/api/v2/resident/**,/api/v3/resident/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Property Service ─────────────────────────────────────────
+        - id: property-service
+          uri: ${PROPERTY_SERVICE_URL:http://property-service:8080}
+          predicates:
+            - Path=/api/v1/property/**,/api/v2/property/**,/api/v3/property/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Finance Service ──────────────────────────────────────────
+        - id: finance-service
+          uri: ${FINANCE_SERVICE_URL:http://finance-service:8080}
+          predicates:
+            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: financeCircuitBreaker
+                fallbackUri: forward:/fallback/finance
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1000ms
+                  factor: 2
+
+        # ── Marketplace Service ──────────────────────────────────────
+        - id: marketplace-service
+          uri: ${MARKETPLACE_SERVICE_URL:http://marketplace-service:8080}
+          predicates:
+            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Food Service ─────────────────────────────────────────────
+        - id: food-service
+          uri: ${FOOD_SERVICE_URL:http://food-service:8080}
+          predicates:
+            - Path=/api/v1/food/**,/api/v2/food/**,/api/v3/food/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Healthcare Service ───────────────────────────────────────
+        - id: healthcare-service
+          uri: ${HEALTHCARE_SERVICE_URL:http://healthcare-service:8080}
+          predicates:
+            - Path=/api/v1/healthcare/**,/api/v2/healthcare/**,/api/v3/healthcare/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Sports Service ───────────────────────────────────────────
+        - id: sports-service
+          uri: ${SPORTS_SERVICE_URL:http://sports-service:8080}
+          predicates:
+            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Events Service ───────────────────────────────────────────
+        - id: events-service
+          uri: ${EVENTS_SERVICE_URL:http://events-service:8080}
+          predicates:
+            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Security Service ─────────────────────────────────────────
+        - id: security-service
+          uri: ${SECURITY_SERVICE_URL:http://security-service:8080}
+          predicates:
+            - Path=/api/v1/security/**,/api/v2/security/**,/api/v3/security/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Visitor Service ──────────────────────────────────────────
+        - id: visitor-service
+          uri: ${VISITOR_SERVICE_URL:http://visitor-service:8080}
+          predicates:
+            - Path=/api/v1/visitor/**,/api/v2/visitor/**,/api/v3/visitor/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Booking Service ──────────────────────────────────────────
+        - id: booking-service
+          uri: ${BOOKING_SERVICE_URL:http://booking-service:8080}
+          predicates:
+            - Path=/api/v1/booking/**,/api/v2/booking/**,/api/v3/booking/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Notification Service ─────────────────────────────────────
+        - id: notification-service
+          uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
+          predicates:
+            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Workflow Service ─────────────────────────────────────────
+        - id: workflow-service
+          uri: ${WORKFLOW_SERVICE_URL:http://workflow-service:8080}
+          predicates:
+            - Path=/api/v1/workflow/**,/api/v2/workflow/**,/api/v3/workflow/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Document Service ─────────────────────────────────────────
+        - id: document-service
+          uri: ${DOCUMENT_SERVICE_URL:http://document-service:8080}
+          predicates:
+            - Path=/api/v1/document/**,/api/v2/document/**,/api/v3/document/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Search Service ───────────────────────────────────────────
+        - id: search-service
+          uri: ${SEARCH_SERVICE_URL:http://search-service:8080}
+          predicates:
+            - Path=/api/v1/search/**,/api/v2/search/**,/api/v3/search/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Analytics Service ────────────────────────────────────────
+        - id: analytics-service
+          uri: ${ANALYTICS_SERVICE_URL:http://analytics-service:8080}
+          predicates:
+            - Path=/api/v1/analytics/**,/api/v2/analytics/**,/api/v3/analytics/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── AI Service ───────────────────────────────────────────────
+        - id: ai-service
+          uri: ${AI_SERVICE_URL:http://ai-service:8080}
+          predicates:
+            - Path=/api/v1/ai/**,/api/v2/ai/**,/api/v3/ai/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: aiCircuitBreaker
+                fallbackUri: forward:/fallback/ai
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                backoff:
+                  firstBackoff: 500ms
+                  maxBackoff: 2000ms
+                  factor: 2
+
+# ── JWT Configuration ──────────────────────────────────────────────────
+gateway:
+  jwt:
+    secret: ${JWT_SECRET:your-256-bit-secret-key-for-signing-jwt-tokens-change-in-production}
+    expiration: 86400000       # 24 hours
+    refresh-expiration: 604800000  # 7 days
+    issuer: mana-community
+
+  # ── Public endpoints (no auth required) ────────────────────────────
+  security:
+    public-paths:
+      - /api/v*/auth/login
+      - /api/v*/auth/register
+      - /api/v*/auth/forgot-password
+      - /api/v*/auth/reset-password
+      - /api/v*/auth/verify-email
+      - /api/v*/auth/verify-otp
+      - /api/v*/auth/refresh-token
+      - /api/v*/auth/oauth2/**
+      - /actuator/health
+      - /actuator/info
+      - /actuator/prometheus
+      - /swagger-ui.html
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /webjars/**
+      - /fallback/**
+
+  # ── Tenant Configuration ───────────────────────────────────────────
+  tenant:
+    header-name: X-Tenant-Id
+    default-tenant: default
+    supported-types:
+      - APARTMENT
+      - VILLA
+      - SCHOOL
+      - HOSPITAL
+      - CORPORATE_PARK
+      - COMMERCIAL_BUILDING
+      - UNIVERSITY
+      - SHOPPING_MALL
+
+  # ── Rate Limiting ──────────────────────────────────────────────────
+  rate-limit:
+    enabled: true
+    default-rate: 100
+    default-duration: 60
+    endpoints:
+      "/api/v*/auth/login": "5,60"
+      "/api/v*/auth/verify-otp": "3,60"
+      "/api/v*/finance/payment/**": "20,60"
+      "/api/v*/search/**": "100,60"
+      "/api/v*/ai/**": "50,60"
+
+# ── Resilience4j ───────────────────────────────────────────────────────
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.util.concurrent.TimeoutException
+    instances:
+      identityCircuitBreaker:
+        base-config: default
+      financeCircuitBreaker:
+        base-config: default
+        failure-rate-threshold: 30
+        wait-duration-in-open-state: 60s
+      aiCircuitBreaker:
+        base-config: default
+        sliding-window-size: 5
+        wait-duration-in-open-state: 45s
+      defaultCircuitBreaker:
+        base-config: default
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+    instances:
+      aiCircuitBreaker:
+        timeout-duration: 30s
+      financeCircuitBreaker:
+        timeout-duration: 15s
+
+  bulkhead:
+    configs:
+      default:
+        max-concurrent-calls: 100
+        max-wait-duration: 500ms
+    instances:
+      aiCircuitBreaker:
+        max-concurrent-calls: 50
+
+# ── Actuator ───────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,gateway,circuitbreakers,circuitbreakerevents
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    gateway:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 50ms,100ms,200ms,500ms,1s,5s
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.1}
+
+# ── Logging ────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.manacommunity.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+    org.springframework.security: INFO
+    io.lettuce: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId}] [%X{tenantId}] %-5level %logger{36} - %msg%n"

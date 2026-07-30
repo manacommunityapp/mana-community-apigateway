@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: community-api-gateway
+  namespace: mana-community
+  labels:
+    app: community-api-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app: community-api-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

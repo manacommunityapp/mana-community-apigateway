@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: community-api-gateway
+  namespace: mana-community
+  labels:
+    app: community-api-gateway
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: community-api-gateway

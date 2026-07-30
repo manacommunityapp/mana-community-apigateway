@@ -1,0 +1,93 @@
+replicaCount: 3
+
+image:
+  repository: community-api-gateway
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: "community-api-gateway"
+
+serviceAccount:
+  create: true
+  name: "community-api-gateway"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+  hosts:
+    - host: api.manacommunity.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+  limits:
+    cpu: "2"
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+probes:
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 60
+    periodSeconds: 15
+  startup:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 30
+
+env:
+  SPRING_PROFILES_ACTIVE: prod
+  JAVA_TOOL_OPTIONS: "-XX:+UseZGC -XX:+ZGenerational -XX:MaxRAMPercentage=75.0"
+
+secrets:
+  jwtSecret: ""
+  redisPassword: ""
+
+config:
+  redisHost: "redis-cluster.mana-community.svc.cluster.local"
+  redisPort: "6379"
+  jwtIssuerUri: "https://auth.manacommunity.com/realms/mana-community"
+  tracingSampleRate: "0.05"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule

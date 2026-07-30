@@ -1,0 +1,13 @@
+apiVersion: v2
+name: community-api-gateway
+description: Helm chart for Mana Community API Gateway
+type: application
+version: 0.1.0
+appVersion: "0.0.1"
+keywords:
+  - api-gateway
+  - spring-cloud-gateway
+  - mana-community
+maintainers:
+  - name: Mana Community
+    email: manacommunityapp@gmail.com

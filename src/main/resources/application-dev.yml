@@ -1,0 +1,111 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: "http://localhost:3000,http://localhost:4200,http://localhost:5173"
+
+      routes:
+        - id: identity-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**
+
+        - id: resident-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/resident/**,/api/v2/resident/**,/api/v3/resident/**
+
+        - id: property-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/v1/property/**,/api/v2/property/**,/api/v3/property/**
+
+        - id: finance-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**
+
+        - id: marketplace-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**
+
+        - id: food-service
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/v1/food/**,/api/v2/food/**,/api/v3/food/**
+
+        - id: healthcare-service
+          uri: http://localhost:8087
+          predicates:
+            - Path=/api/v1/healthcare/**,/api/v2/healthcare/**,/api/v3/healthcare/**
+
+        - id: sports-service
+          uri: http://localhost:8088
+          predicates:
+            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**
+
+        - id: events-service
+          uri: http://localhost:8089
+          predicates:
+            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**
+
+        - id: security-service
+          uri: http://localhost:8090
+          predicates:
+            - Path=/api/v1/security/**,/api/v2/security/**,/api/v3/security/**
+
+        - id: visitor-service
+          uri: http://localhost:8091
+          predicates:
+            - Path=/api/v1/visitor/**,/api/v2/visitor/**,/api/v3/visitor/**
+
+        - id: booking-service
+          uri: http://localhost:8092
+          predicates:
+            - Path=/api/v1/booking/**,/api/v2/booking/**,/api/v3/booking/**
+
+        - id: notification-service
+          uri: http://localhost:8093
+          predicates:
+            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**
+
+        - id: search-service
+          uri: http://localhost:8094
+          predicates:
+            - Path=/api/v1/search/**,/api/v2/search/**,/api/v3/search/**
+
+        - id: analytics-service
+          uri: http://localhost:8095
+          predicates:
+            - Path=/api/v1/analytics/**,/api/v2/analytics/**,/api/v3/analytics/**
+
+        - id: ai-service
+          uri: http://localhost:8096
+          predicates:
+            - Path=/api/v1/ai/**,/api/v2/ai/**,/api/v3/ai/**
+
+gateway:
+  rate-limit:
+    enabled: false
+
+logging:
+  level:
+    com.manacommunity.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0

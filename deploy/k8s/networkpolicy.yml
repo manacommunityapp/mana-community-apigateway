@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: community-api-gateway
+  namespace: mana-community
+  labels:
+    app: community-api-gateway
+spec:
+  podSelector:
+    matchLabels:
+      app: community-api-gateway
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: mana-community
+      ports:
+        - protocol: TCP
+          port: 8080
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
