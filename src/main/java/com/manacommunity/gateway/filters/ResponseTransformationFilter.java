@@ -44,12 +44,13 @@ public class ResponseTransformationFilter implements GlobalFilter, Ordered {
                 headers.set(HeaderConstants.X_REQUEST_ID, requestId);
             }
 
-            // Security headers
+            // Security headers (OWASP ASVS 14.4.3 compliant)
             headers.set("X-Content-Type-Options", "nosniff");
             headers.set("X-Frame-Options", "DENY");
-            headers.set("X-XSS-Protection", "1; mode=block");
+            headers.set("X-XSS-Protection", "0");
             headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-            headers.set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'");
+            headers.set("Content-Security-Policy",
+                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https: wss: ws:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';");
             headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
             headers.set("Permissions-Policy",
                     "camera=(), microphone=(), geolocation=(), payment=()");

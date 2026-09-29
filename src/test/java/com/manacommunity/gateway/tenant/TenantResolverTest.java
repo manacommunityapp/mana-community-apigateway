@@ -1,38 +1,33 @@
 package com.manacommunity.gateway.tenant;
 
+import com.manacommunity.gateway.constants.GatewayConstants;
 import com.manacommunity.gateway.constants.HeaderConstants;
-import com.manacommunity.gateway.security.JwtTokenProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
-import reactor.test.StepVerifier;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-
-@ExtendWith(MockitoExtension.class)
 class TenantResolverTest {
 
-    @Mock
-    private JwtTokenProvider jwtTokenProvider;
-
     private TenantResolver tenantResolver;
-    private TenantProperties tenantProperties;
 
     @BeforeEach
     void setUp() {
-        tenantProperties = new TenantProperties();
-        tenantProperties.setHeaderName("X-Tenant-Id");
-        tenantProperties.setDefaultTenant("default");
-        tenantProperties.setSupportedTypes(List.of("APARTMENT", "VILLA"));
-        tenantResolver = new TenantResolver(tenantProperties, jwtTokenProvider);
+        tenantResolver = new TenantResolver();
+        ReflectionTestUtils.setField(tenantResolver, "defaultTenant", "default");
+    }
+
+    @Test
+    void resolveTenantId_fromAttribute() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        exchange.getAttributes().put(GatewayConstants.TENANT_ID_ATTR, "tenant-from-attr");
+
+        String tenantId = tenantResolver.resolveTenantId(exchange);
+        assertEquals("tenant-from-attr", tenantId);
     }
 
     @Test
@@ -42,24 +37,8 @@ class TenantResolverTest {
                 .build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        StepVerifier.create(tenantResolver.resolveTenantId(exchange))
-                .expectNext("tenant-from-header")
-                .verifyComplete();
-    }
-
-    @Test
-    void resolveTenantId_fromJwt() {
-        when(jwtTokenProvider.validateToken(anyString())).thenReturn(true);
-        when(jwtTokenProvider.getTenantId(anyString())).thenReturn("tenant-from-jwt");
-
-        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list")
-                .header(HttpHeaders.AUTHORIZATION, "Bearer valid-token")
-                .build();
-        MockServerWebExchange exchange = MockServerWebExchange.from(request);
-
-        StepVerifier.create(tenantResolver.resolveTenantId(exchange))
-                .expectNext("tenant-from-jwt")
-                .verifyComplete();
+        String tenantId = tenantResolver.resolveTenantId(exchange);
+        assertEquals("tenant-from-header", tenantId);
     }
 
     @Test
@@ -67,20 +46,7 @@ class TenantResolverTest {
         MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list").build();
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
-        StepVerifier.create(tenantResolver.resolveTenantId(exchange))
-                .expectNext("default")
-                .verifyComplete();
-    }
-
-    @Test
-    void resolveTenantId_fromSubdomain() {
-        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list")
-                .header(HttpHeaders.HOST, "myapartment.api.manacommunity.com")
-                .build();
-        MockServerWebExchange exchange = MockServerWebExchange.from(request);
-
-        StepVerifier.create(tenantResolver.resolveTenantId(exchange))
-                .expectNext("myapartment")
-                .verifyComplete();
+        String tenantId = tenantResolver.resolveTenantId(exchange);
+        assertEquals("default", tenantId);
     }
 }
