@@ -261,6 +261,36 @@ spring:
                   maxBackoff: 500ms
                   factor: 2
 
+        # ── Travel / Trips Service ───────────────────────────────────
+        - id: travel-service
+          uri: ${TRAVEL_SERVICE_URL:http://travel-service:8080}
+          predicates:
+            - Path=/api/v1/travel/**,/api/v2/travel/**,/api/v3/travel/**,/api/v1/trips/**,/api/v2/trips/**,/api/v3/trips/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Legacy Trips (Monolith fallback) ─────────────────────────
+        - id: trips-legacy
+          uri: ${MONOLITH_SERVICE_URL:http://monolith-service:8080}
+          predicates:
+            - Path=/api/trips/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+
         # ── Booking Service ──────────────────────────────────────────
         - id: booking-service
           uri: ${BOOKING_SERVICE_URL:http://booking-service:8080}
