@@ -49,6 +49,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Spring AOP for Micrometer TimedAspect -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <!-- OAuth2 Resource Server -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

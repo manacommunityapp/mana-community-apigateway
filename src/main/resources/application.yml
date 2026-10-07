@@ -11,6 +11,8 @@ server:
 spring:
   application:
     name: community-api-gateway
+  main:
+    allow-bean-definition-overriding: true
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
 
@@ -246,7 +248,7 @@ spring:
         - id: visitor-service
           uri: ${VISITOR_SERVICE_URL:http://visitor-service:8080}
           predicates:
-            - Path=/api/v1/visitor/**,/api/v2/visitor/**,/api/v3/visitor/**
+            - Path=/api/v1/visitor/**,/api/v2/visitor/**,/api/v3/visitor/**,/api/v1/visitors/**,/api/v2/visitors/**,/api/v3/visitors/**,/api/visitors/**,/visitors/**
           filters:
             - name: CircuitBreaker
               args:
@@ -290,6 +292,25 @@ spring:
               args:
                 name: defaultCircuitBreaker
                 fallbackUri: forward:/fallback/default
+
+        # ── Parking Service (Monolith) ───────────────────────────────
+        - id: parking-monolith
+          uri: ${MONOLITH_SERVICE_URL:http://monolith-service:8080}
+          predicates:
+            - Path=/api/parking/**,/parking/**,/api/v1/parking/**,/api/v2/parking/**,/api/v3/parking/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
 
         # ── Booking Service ──────────────────────────────────────────
         - id: booking-service
@@ -353,6 +374,25 @@ spring:
           uri: ${DOCUMENT_SERVICE_URL:http://document-service:8080}
           predicates:
             - Path=/api/v1/document/**,/api/v2/document/**,/api/v3/document/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+
+        # ── Community Graph / Discover Service ───────────────────────
+        - id: graph-service
+          uri: ${GRAPH_SERVICE_URL:http://graph-service:8080}
+          predicates:
+            - Path=/community-graph/**,/api/graph/**,/api/v1/graph/**,/api/v2/graph/**,/api/v3/graph/**
           filters:
             - name: CircuitBreaker
               args:
@@ -561,3 +601,5 @@ logging:
     io.lettuce: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId}] [%X{tenantId}] %-5level %logger{36} - %msg%n"
+
+

@@ -18,7 +18,7 @@ import java.util.List;
 @EnableReactiveMethodSecurity
 public class SecurityConfig {
 
-    @Value("${gateway.security.public-paths}")
+    @Value("${gateway.security.public-paths:/api/v*/auth/login,/api/v*/auth/register,/actuator/health}")
     private List<String> publicPaths;
 
     @Bean
@@ -30,6 +30,11 @@ public class SecurityConfig {
                 .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
                 .cors(cors -> {})
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.mode(org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter.Mode.DENY))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"))
+                        .hsts(hsts -> hsts.includeSubdomains(true).maxAge(java.time.Duration.ofDays(365)))
+                )
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers(publicPaths.toArray(new String[0])).permitAll()
                         .anyExchange().authenticated()

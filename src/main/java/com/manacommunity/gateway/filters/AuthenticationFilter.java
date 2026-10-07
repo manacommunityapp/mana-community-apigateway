@@ -46,7 +46,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
 
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Value("${gateway.security.public-paths}")
+    @Value("${gateway.security.public-paths:/api/v*/auth/login,/api/v*/auth/register,/actuator/health}")
     private List<String> publicPaths;
 
     @Override

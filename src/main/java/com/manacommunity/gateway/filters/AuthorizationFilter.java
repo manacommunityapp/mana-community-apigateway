@@ -47,7 +47,7 @@ public class AuthorizationFilter implements GlobalFilter, Ordered {
     private final PermissionEvaluator permissionEvaluator;
     private final PolicyAuthorization policyAuthorization;
 
-    @Value("${gateway.security.public-paths}")
+    @Value("${gateway.security.public-paths:/api/v*/auth/login,/api/v*/auth/register,/actuator/health}")
     private List<String> publicPaths;
 
     @Override

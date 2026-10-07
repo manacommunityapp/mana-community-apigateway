@@ -17,18 +17,26 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
-    @Value("${gateway.cors.allowed-origins:*}")
+    @Value("${gateway.cors.allowed-origins:https://app.manacommunity.com,https://admin.manacommunity.com,http://localhost:3000,http://localhost:5173}")
     private String allowedOrigins;
 
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
-        if ("*".equals(allowedOrigins)) {
-            corsConfiguration.addAllowedOriginPattern("*");
+        if ("*".equals(allowedOrigins.trim())) {
+            // OWASP/Browser rule: Never combine wildcard origin with allowCredentials: true
+            corsConfiguration.addAllowedOrigin("*");
+            corsConfiguration.setAllowCredentials(false);
         } else {
             List<String> origins = List.of(allowedOrigins.split(","));
-            origins.forEach(origin -> corsConfiguration.addAllowedOrigin(origin.trim()));
+            origins.forEach(origin -> {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    corsConfiguration.addAllowedOrigin(trimmed);
+                }
+            });
+            corsConfiguration.setAllowCredentials(true);
         }
 
         corsConfiguration.addAllowedMethod("GET");
@@ -37,8 +45,23 @@ public class CorsConfig {
         corsConfiguration.addAllowedMethod("DELETE");
         corsConfiguration.addAllowedMethod("PATCH");
         corsConfiguration.addAllowedMethod("OPTIONS");
-        corsConfiguration.addAllowedHeader("*");
-        corsConfiguration.setAllowCredentials(true);
+        corsConfiguration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "Accept",
+                "Origin",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers",
+                "X-Community-Id",
+                "X-Correlation-Id",
+                "Idempotency-Key"
+        ));
+        corsConfiguration.setExposedHeaders(List.of(
+                "Authorization",
+                "X-Correlation-Id",
+                "Idempotency-Key"
+        ));
         corsConfiguration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
