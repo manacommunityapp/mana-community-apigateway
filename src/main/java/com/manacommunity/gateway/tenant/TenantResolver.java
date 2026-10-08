@@ -74,4 +74,22 @@ public class TenantResolver {
 
         return null;
     }
+
+    /**
+     * Resolves the organization ID from exchange attributes or request headers.
+     * Falls back to "1" (default organization).
+     */
+    public String resolveOrganizationId(ServerWebExchange exchange) {
+        String orgId = exchange.getAttribute(GatewayConstants.ORGANIZATION_ID_ATTR);
+        if (orgId != null && !orgId.isBlank()) {
+            return orgId;
+        }
+
+        orgId = exchange.getRequest().getHeaders().getFirst(HeaderConstants.X_ORGANIZATION_ID);
+        if (orgId != null && !orgId.isBlank()) {
+            return orgId;
+        }
+
+        return "1";
+    }
 }

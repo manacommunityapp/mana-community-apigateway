@@ -39,6 +39,19 @@ public final class TenantContext {
         return exchange.getAttribute(GatewayConstants.TENANT_CODE_ATTR);
     }
 
+    public static void setOrganizationId(ServerWebExchange exchange, String organizationId) {
+        if (exchange != null && organizationId != null) {
+            exchange.getAttributes().put(GatewayConstants.ORGANIZATION_ID_ATTR, organizationId);
+        }
+    }
+
+    public static String getOrganizationId(ServerWebExchange exchange) {
+        if (exchange == null) {
+            return null;
+        }
+        return exchange.getAttribute(GatewayConstants.ORGANIZATION_ID_ATTR);
+    }
+
     public static void setCommunityId(ServerWebExchange exchange, String communityId) {
         if (exchange != null && communityId != null) {
             exchange.getAttributes().put(GatewayConstants.COMMUNITY_ID_ATTR, communityId);

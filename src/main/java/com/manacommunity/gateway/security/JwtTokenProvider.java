@@ -103,6 +103,17 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Extracts the organizationId claim from the token (checking "organizationId" and "org_id").
+     */
+    public String getOrganizationId(String token) {
+        String orgId = getStringClaim(token, "organizationId");
+        if (orgId == null || orgId.isBlank()) {
+            orgId = getStringClaim(token, "org_id");
+        }
+        return orgId;
+    }
+
+    /**
      * Extracts the communityId claim from the token.
      */
     public String getCommunityId(String token) {

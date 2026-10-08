@@ -36,16 +36,21 @@ public class TenantFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+        String organizationId = tenantResolver.resolveOrganizationId(exchange);
         String tenantId = tenantResolver.resolveTenantId(exchange);
         String tenantCode = tenantResolver.resolveTenantCode(exchange);
         String communityId = tenantResolver.resolveCommunityId(exchange);
 
         // Store in exchange attributes
+        TenantContext.setOrganizationId(exchange, organizationId);
         TenantContext.setTenantId(exchange, tenantId);
         TenantContext.setTenantCode(exchange, tenantCode);
         TenantContext.setCommunityId(exchange, communityId);
 
         // Set MDC for logging
+        if (organizationId != null) {
+            MDC.put("organizationId", organizationId);
+        }
         if (tenantId != null) {
             MDC.put("tenantId", tenantId);
         }
@@ -53,11 +58,14 @@ public class TenantFilter implements GlobalFilter, Ordered {
             MDC.put("tenantCode", tenantCode);
         }
 
-        log.debug("Resolved tenant: id={}, code={}, communityId={}", tenantId, tenantCode, communityId);
+        log.debug("Resolved tenant: orgId={}, id={}, code={}, communityId={}", organizationId, tenantId, tenantCode, communityId);
 
         // Mutate request to add tenant headers for downstream services
         ServerHttpRequest.Builder requestBuilder = exchange.getRequest().mutate();
 
+        if (organizationId != null) {
+            requestBuilder.header(HeaderConstants.X_ORGANIZATION_ID, organizationId);
+        }
         if (tenantId != null) {
             requestBuilder.header(HeaderConstants.X_TENANT_ID, tenantId);
         }

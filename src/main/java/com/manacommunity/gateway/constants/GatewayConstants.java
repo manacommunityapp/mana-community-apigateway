@@ -6,6 +6,7 @@ public final class GatewayConstants {
 
     public static final String TENANT_ID_ATTR = "tenantId";
     public static final String TENANT_CODE_ATTR = "tenantCode";
+    public static final String ORGANIZATION_ID_ATTR = "organizationId";
     public static final String COMMUNITY_ID_ATTR = "communityId";
     public static final String USER_ID_ATTR = "userId";
     public static final String USERNAME_ATTR = "username";

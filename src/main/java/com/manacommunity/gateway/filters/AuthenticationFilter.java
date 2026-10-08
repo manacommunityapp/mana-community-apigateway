@@ -99,6 +99,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         String username = jwtTokenProvider.getUsername(token);
         String tenantId = jwtTokenProvider.getTenantId(token);
         String tenantCode = jwtTokenProvider.getTenantCode(token);
+        String organizationId = jwtTokenProvider.getOrganizationId(token);
         String communityId = jwtTokenProvider.getCommunityId(token);
         List<String> roles = jwtTokenProvider.getRoles(token);
         List<String> permissions = jwtTokenProvider.getPermissions(token);
@@ -111,6 +112,7 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         setAttributeIfPresent(exchange, GatewayConstants.USERNAME_ATTR, username);
         setAttributeIfPresent(exchange, GatewayConstants.TENANT_ID_ATTR, tenantId);
         setAttributeIfPresent(exchange, GatewayConstants.TENANT_CODE_ATTR, tenantCode);
+        setAttributeIfPresent(exchange, GatewayConstants.ORGANIZATION_ID_ATTR, organizationId);
         setAttributeIfPresent(exchange, GatewayConstants.COMMUNITY_ID_ATTR, communityId);
         setAttributeIfPresent(exchange, GatewayConstants.EMAIL_ATTR, email);
         setAttributeIfPresent(exchange, GatewayConstants.MOBILE_ATTR, mobile);

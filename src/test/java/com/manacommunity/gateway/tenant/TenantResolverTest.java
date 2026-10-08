@@ -49,4 +49,55 @@ class TenantResolverTest {
         String tenantId = tenantResolver.resolveTenantId(exchange);
         assertEquals("default", tenantId);
     }
+
+    @Test
+    void resolveOrganizationId_fromAttribute() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        exchange.getAttributes().put(GatewayConstants.ORGANIZATION_ID_ATTR, "42");
+
+        String orgId = tenantResolver.resolveOrganizationId(exchange);
+        assertEquals("42", orgId);
+    }
+
+    @Test
+    void resolveOrganizationId_fromHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list")
+                .header(HeaderConstants.X_ORGANIZATION_ID, "99")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        String orgId = tenantResolver.resolveOrganizationId(exchange);
+        assertEquals("99", orgId);
+    }
+
+    @Test
+    void resolveOrganizationId_fallsBackToDefault() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        String orgId = tenantResolver.resolveOrganizationId(exchange);
+        assertEquals("1", orgId);
+    }
+
+    @Test
+    void resolveCommunityId_fromAttribute() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+        exchange.getAttributes().put(GatewayConstants.COMMUNITY_ID_ATTR, "1001");
+
+        String communityId = tenantResolver.resolveCommunityId(exchange);
+        assertEquals("1001", communityId);
+    }
+
+    @Test
+    void resolveCommunityId_fromHeader() {
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/resident/list")
+                .header(HeaderConstants.X_COMMUNITY_ID, "2002")
+                .build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        String communityId = tenantResolver.resolveCommunityId(exchange);
+        assertEquals("2002", communityId);
+    }
 }

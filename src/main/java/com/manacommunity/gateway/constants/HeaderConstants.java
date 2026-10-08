@@ -6,6 +6,7 @@ public final class HeaderConstants {
 
     public static final String X_TENANT_ID = "X-Tenant-Id";
     public static final String X_TENANT_CODE = "X-Tenant-Code";
+    public static final String X_ORGANIZATION_ID = "X-Organization-Id";
     public static final String X_COMMUNITY_ID = "X-Community-Id";
     public static final String X_CORRELATION_ID = "X-Correlation-Id";
     public static final String X_REQUEST_ID = "X-Request-Id";
