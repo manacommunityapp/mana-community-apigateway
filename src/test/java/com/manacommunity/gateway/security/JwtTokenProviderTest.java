@@ -94,14 +94,48 @@ class JwtTokenProviderTest {
         assertThat(tokenProvider.getEmail(token)).isEqualTo("test@example.com");
     }
 
+    @Test
+    void validateToken_withInvalidIssuer_returnsFalse() {
+        String token = buildTokenWithIssuerAndAudience(Map.of("userId", "user-123"), "rogue-issuer", null, 3600000);
+        assertThat(tokenProvider.validateToken(token)).isFalse();
+    }
+
+    @Test
+    void validateToken_withWrongAudience_returnsFalse() {
+        JwtProperties props = new JwtProperties();
+        props.setSecret(secret);
+        props.setExpiration(86400000L);
+        props.setIssuer("mana-community");
+        props.setAudience("community-mobile-app");
+
+        JwtTokenProvider providerWithAud = new JwtTokenProvider(props);
+
+        // Token with wrong audience
+        String wrongAudToken = buildTokenWithIssuerAndAudience(Map.of("userId", "user-123"), "mana-community", "other-audience", 3600000);
+        assertThat(providerWithAud.validateToken(wrongAudToken)).isFalse();
+
+        // Token with matching audience
+        String correctAudToken = buildTokenWithIssuerAndAudience(Map.of("userId", "user-123"), "mana-community", "community-mobile-app", 3600000);
+        assertThat(providerWithAud.validateToken(correctAudToken)).isTrue();
+    }
+
     private String buildToken(Map<String, Object> claims, long validityMs) {
+        return buildTokenWithIssuerAndAudience(claims, "mana-community", null, validityMs);
+    }
+
+    private String buildTokenWithIssuerAndAudience(Map<String, Object> claims, String issuer, String audience, long validityMs) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + validityMs);
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .claims(claims)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(key)
-                .compact();
+                .expiration(expiry);
+        if (issuer != null) {
+            builder.issuer(issuer);
+        }
+        if (audience != null) {
+            builder.audience().add(audience).and();
+        }
+        return builder.signWith(key).compact();
     }
 }

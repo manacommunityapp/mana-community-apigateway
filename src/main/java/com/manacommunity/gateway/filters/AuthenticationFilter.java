@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.manacommunity.gateway.constants.GatewayConstants;
 import com.manacommunity.gateway.constants.HeaderConstants;
 import com.manacommunity.gateway.dto.ErrorResponse;
+import com.manacommunity.gateway.security.GatewaySecurityProperties;
 import com.manacommunity.gateway.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,9 +46,8 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private final JwtTokenProvider jwtTokenProvider;
-
-    @Value("${gateway.security.public-paths:/api/v*/auth/login,/api/v*/auth/register,/actuator/health}")
-    private List<String> publicPaths;
+    private final GatewaySecurityProperties securityProperties;
+    private final org.springframework.beans.factory.ObjectProvider<com.manacommunity.gateway.cache.GatewayCacheManager> cacheManagerProvider;
 
     @Override
     public int getOrder() {
@@ -89,6 +89,21 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
             log.error("Failed to extract claims from JWT token: {}", e.getMessage());
             return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED,
                     "Failed to process authentication token");
+        }
+
+        // Check if session has been revoked
+        String sessionId = exchange.getAttribute(GatewayConstants.SESSION_ID_ATTR);
+        com.manacommunity.gateway.cache.GatewayCacheManager cacheManager = cacheManagerProvider.getIfAvailable();
+        if (sessionId != null && cacheManager != null) {
+            return cacheManager.getCachedValue("revoked_sessions", sessionId)
+                    .flatMap(revoked -> {
+                        if ("true".equalsIgnoreCase(revoked) || "REVOKED".equalsIgnoreCase(revoked) || "LOGGED_OUT".equalsIgnoreCase(revoked)) {
+                            log.warn("Session [{}] has been revoked or logged out", sessionId);
+                            return writeErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Session has been revoked");
+                        }
+                        return chain.filter(exchange);
+                    })
+                    .switchIfEmpty(chain.filter(exchange));
         }
 
         return chain.filter(exchange);
@@ -144,10 +159,11 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicPath(String requestPath) {
-        if (publicPaths == null || publicPaths.isEmpty()) {
+        List<String> paths = securityProperties != null ? securityProperties.getPublicPaths() : null;
+        if (paths == null || paths.isEmpty()) {
             return false;
         }
-        return publicPaths.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
+        return paths.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
     }
 
     private Mono<Void> writeErrorResponse(ServerWebExchange exchange, HttpStatus status, String message) {

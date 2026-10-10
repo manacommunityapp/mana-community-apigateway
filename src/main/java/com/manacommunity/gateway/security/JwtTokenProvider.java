@@ -41,10 +41,15 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser()
-                    .verifyWith(getSigningKey())
-                    .build()
-                    .parseSignedClaims(token);
+            var builder = Jwts.parser()
+                    .verifyWith(getSigningKey());
+            if (jwtProperties.getIssuer() != null && !jwtProperties.getIssuer().isBlank()) {
+                builder.requireIssuer(jwtProperties.getIssuer());
+            }
+            if (jwtProperties.getAudience() != null && !jwtProperties.getAudience().isBlank()) {
+                builder.requireAudience(jwtProperties.getAudience());
+            }
+            builder.build().parseSignedClaims(token);
             return !isTokenExpired(token);
         } catch (ExpiredJwtException e) {
             log.warn("JWT token is expired: {}", e.getMessage());
@@ -55,7 +60,7 @@ public class JwtTokenProvider {
         } catch (IllegalArgumentException e) {
             log.warn("JWT token is null or empty: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("Unexpected error validating JWT token: {}", e.getMessage());
+            log.warn("JWT token validation failed: {}", e.getMessage());
         }
         return false;
     }

@@ -58,7 +58,7 @@ spring:
         - id: identity-service
           uri: ${IDENTITY_SERVICE_URL:http://identity-service:8080}
           predicates:
-            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**
+            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**,/api/auth/**
           filters:
             - name: CircuitBreaker
               args:
@@ -115,7 +115,7 @@ spring:
         - id: finance-service
           uri: ${FINANCE_SERVICE_URL:http://finance-service:8080}
           predicates:
-            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**
+            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**,/api/finance/**
           filters:
             - name: CircuitBreaker
               args:
@@ -130,11 +130,30 @@ spring:
                   maxBackoff: 1000ms
                   factor: 2
 
+        # ── Payment Service ──────────────────────────────────────────
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URL:http://payment-service:8080}
+          predicates:
+            - Path=/api/v1/payment/**,/api/v1/payments/**,/api/v2/payments/**,/api/v3/payments/**,/api/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: defaultCircuitBreaker
+                fallbackUri: forward:/fallback/default
+            - name: Retry
+              args:
+                retries: 2
+                methods: GET
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1000ms
+                  factor: 2
+
         # ── Marketplace Service ──────────────────────────────────────
         - id: marketplace-service
           uri: ${MARKETPLACE_SERVICE_URL:http://marketplace-service:8080}
           predicates:
-            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**
+            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**,/api/marketplace/**
           filters:
             - name: CircuitBreaker
               args:
@@ -191,7 +210,7 @@ spring:
         - id: sports-service
           uri: ${SPORTS_SERVICE_URL:http://sports-service:8080}
           predicates:
-            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**
+            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**,/api/sports/**,/api/v1/tournaments/**,/api/tournaments/**,/api/v1/auction/**,/api/auction/**
           filters:
             - name: CircuitBreaker
               args:
@@ -210,7 +229,7 @@ spring:
         - id: events-service
           uri: ${EVENTS_SERVICE_URL:http://events-service:8080}
           predicates:
-            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**
+            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**,/api/events/**
           filters:
             - name: CircuitBreaker
               args:
@@ -335,7 +354,7 @@ spring:
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URL:http://notification-service:8080}
           predicates:
-            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**
+            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**,/api/v1/notifications/**,/api/v2/notifications/**,/api/v3/notifications/**,/api/notifications/**
           filters:
             - name: CircuitBreaker
               args:
@@ -476,13 +495,27 @@ gateway:
   security:
     public-paths:
       - /api/v*/auth/login
+      - /api/auth/login
       - /api/v*/auth/register
+      - /api/auth/register
       - /api/v*/auth/forgot-password
+      - /api/auth/forgot-password
       - /api/v*/auth/reset-password
+      - /api/auth/reset-password
       - /api/v*/auth/verify-email
+      - /api/auth/verify-email
       - /api/v*/auth/verify-otp
+      - /api/auth/verify-otp
+      - /api/otp/**
       - /api/v*/auth/refresh-token
+      - /api/auth/refresh
       - /api/v*/auth/oauth2/**
+      - /api/auth/oauth2/**
+      - /api/v*/payment/webhooks/**
+      - /api/v*/payments/webhooks/**
+      - /api/payments/webhooks/**
+      - /api/v*/notifications/webhooks/**
+      - /api/notifications/webhooks/**
       - /actuator/health
       - /actuator/info
       - /actuator/prometheus
@@ -491,6 +524,7 @@ gateway:
       - /v3/api-docs/**
       - /webjars/**
       - /fallback/**
+      - /gateway/routes/**
 
   # ── Tenant Configuration ───────────────────────────────────────────
   tenant:

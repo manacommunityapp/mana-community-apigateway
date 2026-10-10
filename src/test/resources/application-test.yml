@@ -23,6 +23,7 @@ gateway:
     expiration: 3600000
     refresh-expiration: 86400000
     issuer: test
+    audience: test-audience
   security:
     public-paths:
       - /api/v*/auth/login
@@ -41,6 +42,9 @@ gateway:
     enabled: false
 
 management:
+  health:
+    redis:
+      enabled: false
   tracing:
     sampling:
       probability: 0.0

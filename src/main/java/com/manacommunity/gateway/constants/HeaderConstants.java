@@ -28,4 +28,6 @@ public final class HeaderConstants {
     public static final String BEARER_PREFIX = "Bearer ";
     public static final String CONTENT_TYPE = "Content-Type";
     public static final String ACCEPT_LANGUAGE = "Accept-Language";
+    public static final String TRACEPARENT = "traceparent";
+    public static final String TRACESTATE = "tracestate";
 }

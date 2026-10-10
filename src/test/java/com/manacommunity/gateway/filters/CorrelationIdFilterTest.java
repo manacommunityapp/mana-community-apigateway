@@ -40,4 +40,19 @@ class CorrelationIdFilterTest {
         assertThat(GatewayConstants.CORRELATION_ID_ATTR).isEqualTo("correlationId");
         assertThat(GatewayConstants.REQUEST_ID_ATTR).isEqualTo("requestId");
     }
+
+    @Test
+    void shouldGenerateTraceparentWhenFiltering() {
+        CorrelationIdFilter filter = new CorrelationIdFilter();
+        MockServerHttpRequest request = MockServerHttpRequest.get("/api/v1/test").build();
+        MockServerWebExchange exchange = MockServerWebExchange.from(request);
+
+        filter.filter(exchange, ex -> {
+            assertThat(ex.getRequest().getHeaders().getFirst(HeaderConstants.TRACEPARENT)).isNotNull();
+            assertThat(ex.getRequest().getHeaders().getFirst(HeaderConstants.TRACEPARENT)).startsWith("00-");
+            return reactor.core.publisher.Mono.empty();
+        }).block();
+
+        assertThat(exchange.getResponse().getHeaders().getFirst(HeaderConstants.TRACEPARENT)).isNotNull();
+    }
 }

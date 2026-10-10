@@ -16,84 +16,119 @@ spring:
 
       routes:
         - id: identity-service
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**
-
-        - id: resident-service
-          uri: http://localhost:8082
-          predicates:
-            - Path=/api/v1/resident/**,/api/v2/resident/**,/api/v3/resident/**
-
-        - id: property-service
           uri: http://localhost:8083
           predicates:
-            - Path=/api/v1/property/**,/api/v2/property/**,/api/v3/property/**
+            - Path=/api/v1/auth/**,/api/v2/auth/**,/api/v3/auth/**,/api/auth/**
 
-        - id: finance-service
+        - id: sports-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**,/api/sports/**,/api/v1/tournaments/**,/api/tournaments/**,/api/v1/auction/**,/api/auction/**
+
+        - id: media-service
           uri: http://localhost:8084
           predicates:
-            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**
+            - Path=/api/v1/media/**,/api/v2/media/**,/api/v3/media/**,/api/media/**
 
         - id: marketplace-service
           uri: http://localhost:8085
           predicates:
-            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**
+            - Path=/api/v1/marketplace/**,/api/v2/marketplace/**,/api/v3/marketplace/**,/api/marketplace/**
 
-        - id: food-service
+        - id: finance-service
           uri: http://localhost:8086
           predicates:
-            - Path=/api/v1/food/**,/api/v2/food/**,/api/v3/food/**
+            - Path=/api/v1/finance/**,/api/v2/finance/**,/api/v3/finance/**,/api/finance/**
 
-        - id: healthcare-service
+        - id: payment-service
           uri: http://localhost:8087
           predicates:
-            - Path=/api/v1/healthcare/**,/api/v2/healthcare/**,/api/v3/healthcare/**
+            - Path=/api/v1/payment/**,/api/v1/payments/**,/api/v2/payments/**,/api/v3/payments/**,/api/payments/**
 
-        - id: sports-service
+        - id: food-service
           uri: http://localhost:8088
           predicates:
-            - Path=/api/v1/sports/**,/api/v2/sports/**,/api/v3/sports/**
-
-        - id: events-service
-          uri: http://localhost:8089
-          predicates:
-            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**
-
-        - id: security-service
-          uri: http://localhost:8090
-          predicates:
-            - Path=/api/v1/security/**,/api/v2/security/**,/api/v3/security/**
-
-        - id: visitor-service
-          uri: http://localhost:8091
-          predicates:
-            - Path=/api/v1/visitor/**,/api/v2/visitor/**,/api/v3/visitor/**
+            - Path=/api/v1/food/**,/api/v2/food/**,/api/v3/food/**,/api/food/**
 
         - id: booking-service
+          uri: http://localhost:8089
+          predicates:
+            - Path=/api/v1/booking/**,/api/v2/booking/**,/api/v3/booking/**,/api/booking/**,/api/resource-booking/**
+
+        - id: vendor-service
+          uri: http://localhost:8090
+          predicates:
+            - Path=/api/v1/vendor/**,/api/v2/vendor/**,/api/v3/vendor/**,/api/vendor/**
+
+        - id: professional-network-service
+          uri: http://localhost:8091
+          predicates:
+            - Path=/api/v1/professional-network/**,/api/v2/professional-network/**,/api/v3/professional-network/**,/api/professional-network/**
+
+        - id: social-service
           uri: http://localhost:8092
           predicates:
-            - Path=/api/v1/booking/**,/api/v2/booking/**,/api/v3/booking/**
+            - Path=/api/v1/social/**,/api/v2/social/**,/api/v3/social/**,/api/social/**
 
         - id: notification-service
           uri: http://localhost:8093
           predicates:
-            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**
+            - Path=/api/v1/notification/**,/api/v2/notification/**,/api/v3/notification/**,/api/v1/notifications/**,/api/v2/notifications/**,/api/v3/notifications/**,/api/notifications/**
 
-        - id: search-service
+        - id: wallet-service
           uri: http://localhost:8094
           predicates:
-            - Path=/api/v1/search/**,/api/v2/search/**,/api/v3/search/**
+            - Path=/api/v1/wallet/**,/api/v2/wallet/**,/api/v3/wallet/**,/api/wallet/**
 
-        - id: analytics-service
+        - id: emergency-service
           uri: http://localhost:8095
           predicates:
-            - Path=/api/v1/analytics/**,/api/v2/analytics/**,/api/v3/analytics/**
+            - Path=/api/v1/emergency/**,/api/v2/emergency/**,/api/v3/emergency/**,/api/emergency/**
 
-        - id: ai-service
+        - id: events-service
           uri: http://localhost:8096
           predicates:
-            - Path=/api/v1/ai/**,/api/v2/ai/**,/api/v3/ai/**
+            - Path=/api/v1/events/**,/api/v2/events/**,/api/v3/events/**,/api/events/**
+
+        - id: travel-service
+          uri: http://localhost:8097
+          predicates:
+            - Path=/api/v1/travel/**,/api/v2/travel/**,/api/v3/travel/**,/api/travel/**,/api/v1/trips/**,/api/trips/**
+
+        - id: helpdesk-service
+          uri: http://localhost:8098
+          predicates:
+            - Path=/api/v1/helpdesk/**,/api/v2/helpdesk/**,/api/v3/helpdesk/**,/api/helpdesk/**
+
+        - id: graph-service
+          uri: http://localhost:8099
+          predicates:
+            - Path=/api/v1/graph/**,/api/v2/graph/**,/api/v3/graph/**,/api/graph/**,/community-graph/**
+
+        - id: health-service
+          uri: http://localhost:8101
+          predicates:
+            - Path=/api/v1/health/**,/api/v2/health/**,/api/v3/health/**,/api/health/**
+
+        - id: feedback-service
+          uri: http://localhost:8102
+          predicates:
+            - Path=/api/v1/feedback/**,/api/v2/feedback/**,/api/v3/feedback/**,/api/feedback/**
+
+        - id: governance-service
+          uri: http://localhost:8103
+          predicates:
+            - Path=/api/v1/governance/**,/api/v2/governance/**,/api/v3/governance/**,/api/governance/**
+
+        - id: services-platform-service
+          uri: http://localhost:8104
+          predicates:
+            - Path=/api/v1/services/**,/api/v2/services/**,/api/v3/services/**,/api/services/**,/api/services-platform/**
+
+        - id: group-marketplace-service
+          uri: http://localhost:8105
+          predicates:
+            - Path=/api/v1/group-marketplace/**,/api/v2/group-marketplace/**,/api/v3/group-marketplace/**,/api/group-marketplace/**
 
 gateway:
   rate-limit:
@@ -109,3 +144,8 @@ management:
   tracing:
     sampling:
       probability: 1.0
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
