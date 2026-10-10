@@ -16,15 +16,23 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Route Registry — Gateway vs. Deployed Services Truth Map.
+ * Route Registry -- Gateway vs. Deployed Services Truth Map.
  * <p>
  * Maintains the explicit contract of which microservice owns which route prefix,
  * its runtime deployment port, verified controller endpoints, mandatory
  * verification requirements, and active health/readiness probe capabilities.
+ * <p>
+ * Also provides machine-readable service inventory with database ownership,
+ * dependency graphs, and automatic detection of orphaned routes and duplicated
+ * endpoints across the platform.
  */
 @Slf4j
 @Component
 public class RouteRegistry {
+
+    // -------------------------------------------------------------------------
+    // Domain Models
+    // -------------------------------------------------------------------------
 
     @Data
     @Builder
@@ -58,7 +66,90 @@ public class RouteRegistry {
         private Instant checkedAt;
     }
 
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DatabaseOwnership {
+        private String databaseName;
+        private String type;
+        private List<String> primaryEntities;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ServiceInventoryEntry {
+        private String serviceId;
+        private String displayName;
+        private String owningTeam;
+        private String ownerEmail;
+        private String deployedServiceName;
+        private int defaultPort;
+        private List<String> apiVersions;
+        private DatabaseOwnership databaseOwnership;
+        private List<String> internalDependencies;
+        private List<String> externalDependencies;
+        private List<String> gatewayRouteIds;
+        private List<String> pathPatterns;
+        private String healthEndpoint;
+        private boolean active;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DuplicateEndpoint {
+        private String pathPattern;
+        private List<String> conflictingRouteIds;
+        private String conflictType; // EXACT_DUPLICATE, OVERLAPPING_WILDCARD, PORT_COLLISION
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class OrphanedRoute {
+        private String routeId;
+        private String pathPattern;
+        private String reason; // NO_REGISTERED_BACKEND, INACTIVE_SERVICE
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RegistryAnomalyReport {
+        private List<DuplicateEndpoint> duplicatedEndpoints;
+        private List<OrphanedRoute> orphanedRoutes;
+        private int totalAnomalies;
+        private String overallHealth; // HEALTHY, WARNING, CRITICAL
+        private Instant generatedAt;
+    }
+
+    // -------------------------------------------------------------------------
+    // State
+    // -------------------------------------------------------------------------
+
     private final Map<String, RegisteredRoute> registry = new ConcurrentHashMap<>();
+    private final Map<String, ServiceInventoryEntry> inventory = new ConcurrentHashMap<>();
+
+    /** Gateway route IDs present in application.yml but NOT backed by a registered service. */
+    private static final Set<String> GATEWAY_ONLY_ROUTE_IDS = Set.of(
+            "trips-legacy",
+            "parking-monolith",
+            "resident-service",
+            "property-service",
+            "security-service",
+            "visitor-service",
+            "workflow-service",
+            "document-service",
+            "search-service",
+            "analytics-service"
+    );
+
     private final WebClient webClient;
 
     public RouteRegistry() {
@@ -68,7 +159,12 @@ public class RouteRegistry {
     public RouteRegistry(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder != null ? webClientBuilder.build() : WebClient.builder().build();
         initRegistry();
+        initInventory();
     }
+
+    // -------------------------------------------------------------------------
+    // Route Registry Initialization
+    // -------------------------------------------------------------------------
 
     private void initRegistry() {
         // 1. Auth Service
@@ -485,9 +581,249 @@ public class RouteRegistry {
         log.info("Initialized RouteRegistry with {} platform verified routes", registry.size());
     }
 
+    // -------------------------------------------------------------------------
+    // Service Inventory Initialization
+    // -------------------------------------------------------------------------
+
+    private void initInventory() {
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("auth-service").displayName("Authentication Service")
+                .owningTeam("Platform Security").ownerEmail("platform-security@manacommunity.app")
+                .deployedServiceName("mana-community-auth").defaultPort(8083).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_auth_db").type("PostgreSQL")
+                        .primaryEntities(List.of("users", "sessions", "refresh_tokens", "otp_records", "mfa_configs")).build())
+                .internalDependencies(List.of("notification-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("auth-service")).pathPatterns(List.of("/api/v1/auth/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("sports-service").displayName("Sports and Tournament Service")
+                .owningTeam("Community Activities").ownerEmail("sports-team@manacommunity.app")
+                .deployedServiceName("mana-community-sports").defaultPort(8082).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_sports_db").type("PostgreSQL")
+                        .primaryEntities(List.of("tournaments", "teams", "players", "matches", "auctions", "venues")).build())
+                .internalDependencies(List.of("notification-service", "payment-service", "media-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("sports-service")).pathPatterns(List.of("/api/v1/sports/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("events-service").displayName("Events and Community Gatherings Service")
+                .owningTeam("Community Activities").ownerEmail("events-team@manacommunity.app")
+                .deployedServiceName("mana-community-events").defaultPort(8096).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_events_db").type("PostgreSQL")
+                        .primaryEntities(List.of("events", "registrations", "volunteers", "donations", "venues")).build())
+                .internalDependencies(List.of("notification-service", "payment-service", "media-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("events-service")).pathPatterns(List.of("/api/v1/events/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("finance-service").displayName("Finance and Accounting Service")
+                .owningTeam("Finance Engineering").ownerEmail("finance-engineering@manacommunity.app")
+                .deployedServiceName("mana-community-finance").defaultPort(8086).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_finance_db").type("PostgreSQL")
+                        .primaryEntities(List.of("ledger_entries", "invoices", "receipts", "billing_cycles", "budgets")).build())
+                .internalDependencies(List.of("payment-service", "notification-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("finance-service")).pathPatterns(List.of("/api/v1/finance/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("payment-service").displayName("Payment Processing Service")
+                .owningTeam("Finance Engineering").ownerEmail("payments@manacommunity.app")
+                .deployedServiceName("mana-community-payment").defaultPort(8087).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_payment_db").type("PostgreSQL")
+                        .primaryEntities(List.of("payment_intents", "transactions", "refunds", "escrow_holds", "webhooks")).build())
+                .internalDependencies(List.of("wallet-service", "notification-service", "finance-service"))
+                .externalDependencies(List.of("Stripe", "Razorpay", "Redis", "Kafka"))
+                .gatewayRouteIds(List.of("payment-service")).pathPatterns(List.of("/api/v1/payment/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("marketplace-service").displayName("Community Marketplace Service")
+                .owningTeam("Commerce Platform").ownerEmail("marketplace@manacommunity.app")
+                .deployedServiceName("mana-community-marketplace").defaultPort(8085).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_marketplace_db").type("PostgreSQL")
+                        .primaryEntities(List.of("listings", "orders", "cart_items", "disputes", "seller_profiles")).build())
+                .internalDependencies(List.of("payment-service", "notification-service", "media-service", "wallet-service"))
+                .externalDependencies(List.of("Redis", "Kafka", "Elasticsearch"))
+                .gatewayRouteIds(List.of("marketplace-service")).pathPatterns(List.of("/api/v1/marketplace/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("notification-service").displayName("Notification and Alert Service")
+                .owningTeam("Platform Infra").ownerEmail("notifications@manacommunity.app")
+                .deployedServiceName("mana-community-notification").defaultPort(8093).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_notification_db").type("PostgreSQL")
+                        .primaryEntities(List.of("notifications", "templates", "dlq_messages", "user_preferences")).build())
+                .internalDependencies(List.of())
+                .externalDependencies(List.of("Firebase FCM", "AWS SES", "Twilio SMS", "Redis", "Kafka"))
+                .gatewayRouteIds(List.of("notification-service")).pathPatterns(List.of("/api/v1/notifications/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("food-service").displayName("Food and Dining Service")
+                .owningTeam("Commerce Platform").ownerEmail("food-team@manacommunity.app")
+                .deployedServiceName("mana-community-food").defaultPort(8088).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_food_db").type("PostgreSQL")
+                        .primaryEntities(List.of("menus", "menu_items", "food_orders", "kitchens", "diet_tags")).build())
+                .internalDependencies(List.of("payment-service", "notification-service", "media-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("food-service")).pathPatterns(List.of("/api/v1/food/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("media-service").displayName("Media and File Service")
+                .owningTeam("Platform Infra").ownerEmail("media-team@manacommunity.app")
+                .deployedServiceName("mana-community-media").defaultPort(8084).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_media_db").type("PostgreSQL")
+                        .primaryEntities(List.of("media_assets", "upload_requests", "thumbnails", "virus_scan_results")).build())
+                .internalDependencies(List.of())
+                .externalDependencies(List.of("AWS S3", "AWS Lambda", "Redis"))
+                .gatewayRouteIds(List.of("media-service")).pathPatterns(List.of("/api/v1/media/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("professional-network-service").displayName("Professional Network Service")
+                .owningTeam("Community Social").ownerEmail("professional-network@manacommunity.app")
+                .deployedServiceName("mana-community-professional-network").defaultPort(8091).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_professional_db").type("PostgreSQL")
+                        .primaryEntities(List.of("professional_profiles", "business_listings", "job_posts", "connections")).build())
+                .internalDependencies(List.of("media-service", "notification-service"))
+                .externalDependencies(List.of("Elasticsearch", "Redis", "Kafka"))
+                .gatewayRouteIds(List.of("professional-network-service")).pathPatterns(List.of("/api/v1/professional-network/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("booking-service").displayName("Resource Booking Service")
+                .owningTeam("Facilities Management").ownerEmail("bookings@manacommunity.app")
+                .deployedServiceName("mana-community-resource-booking").defaultPort(8089).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_booking_db").type("PostgreSQL")
+                        .primaryEntities(List.of("amenities", "booking_slots", "booking_requests", "deposits")).build())
+                .internalDependencies(List.of("payment-service", "notification-service", "finance-service"))
+                .externalDependencies(List.of("Redis"))
+                .gatewayRouteIds(List.of("booking-service")).pathPatterns(List.of("/api/v1/booking/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("services-platform-service").displayName("Home Services Platform Service")
+                .owningTeam("Facilities Management").ownerEmail("services-platform@manacommunity.app")
+                .deployedServiceName("mana-community-services-platform").defaultPort(8104).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_services_db").type("PostgreSQL")
+                        .primaryEntities(List.of("service_requests", "service_providers", "service_categories", "work_orders")).build())
+                .internalDependencies(List.of("vendor-service", "notification-service", "payment-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("services-platform-service")).pathPatterns(List.of("/api/v1/services/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("social-service").displayName("Social and Community Feed Service")
+                .owningTeam("Community Social").ownerEmail("social-team@manacommunity.app")
+                .deployedServiceName("mana-community-social").defaultPort(8092).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_social_db").type("PostgreSQL")
+                        .primaryEntities(List.of("posts", "comments", "reactions", "media_attachments", "moderation_logs")).build())
+                .internalDependencies(List.of("media-service", "notification-service"))
+                .externalDependencies(List.of("Redis", "Kafka", "Elasticsearch"))
+                .gatewayRouteIds(List.of("social-service")).pathPatterns(List.of("/api/v1/social/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("vendor-service").displayName("Vendor and Contractor Management Service")
+                .owningTeam("Facilities Management").ownerEmail("vendors@manacommunity.app")
+                .deployedServiceName("mana-community-vendor").defaultPort(8090).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_vendor_db").type("PostgreSQL")
+                        .primaryEntities(List.of("vendors", "kyc_documents", "work_orders", "sla_contracts", "penalties")).build())
+                .internalDependencies(List.of("notification-service", "payment-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("vendor-service")).pathPatterns(List.of("/api/v1/vendor/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("wallet-service").displayName("Community Wallet Service")
+                .owningTeam("Finance Engineering").ownerEmail("wallet@manacommunity.app")
+                .deployedServiceName("mana-community-wallet").defaultPort(8094).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_wallet_db").type("PostgreSQL")
+                        .primaryEntities(List.of("wallet_accounts", "wallet_transactions", "qr_tokens", "spending_limits")).build())
+                .internalDependencies(List.of("payment-service", "notification-service"))
+                .externalDependencies(List.of("Redis"))
+                .gatewayRouteIds(List.of("wallet-service")).pathPatterns(List.of("/api/v1/wallet/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("emergency-service").displayName("Emergency and SOS Service")
+                .owningTeam("Safety and Security").ownerEmail("emergency@manacommunity.app")
+                .deployedServiceName("mana-community-emergency").defaultPort(8095).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_emergency_db").type("PostgreSQL")
+                        .primaryEntities(List.of("alerts", "incidents", "responders", "audit_logs", "escalation_chains")).build())
+                .internalDependencies(List.of("notification-service"))
+                .externalDependencies(List.of("Redis", "Kafka", "WebSocket"))
+                .gatewayRouteIds(List.of("emergency-service")).pathPatterns(List.of("/api/v1/emergency/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("group-marketplace-service").displayName("Group Buying Marketplace Service")
+                .owningTeam("Commerce Platform").ownerEmail("group-marketplace@manacommunity.app")
+                .deployedServiceName("mana-community-group-marketplace").defaultPort(8105).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_group_marketplace_db").type("PostgreSQL")
+                        .primaryEntities(List.of("group_deals", "deal_participants", "quorum_records", "pre_auth_holds")).build())
+                .internalDependencies(List.of("payment-service", "notification-service", "marketplace-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("group-marketplace-service")).pathPatterns(List.of("/api/v1/group-marketplace/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("travel-service").displayName("Travel and Carpool Service")
+                .owningTeam("Community Activities").ownerEmail("travel@manacommunity.app")
+                .deployedServiceName("mana-community-travel").defaultPort(8097).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_travel_db").type("PostgreSQL")
+                        .primaryEntities(List.of("trips", "carpool_routes", "shuttle_schedules", "boarding_tickets")).build())
+                .internalDependencies(List.of("payment-service", "notification-service"))
+                .externalDependencies(List.of("Google Maps API", "Redis", "Kafka"))
+                .gatewayRouteIds(List.of("travel-service")).pathPatterns(List.of("/api/v1/travel/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("helpdesk-service").displayName("Helpdesk and Maintenance Service")
+                .owningTeam("Facilities Management").ownerEmail("helpdesk@manacommunity.app")
+                .deployedServiceName("mana-community-helpdesk").defaultPort(8098).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_helpdesk_db").type("PostgreSQL")
+                        .primaryEntities(List.of("tickets", "technicians", "sla_policies", "escalation_rules")).build())
+                .internalDependencies(List.of("vendor-service", "notification-service", "media-service"))
+                .externalDependencies(List.of("Redis", "Kafka"))
+                .gatewayRouteIds(List.of("helpdesk-service")).pathPatterns(List.of("/api/v1/helpdesk/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        addInventory(ServiceInventoryEntry.builder()
+                .serviceId("graph-service").displayName("Community Graph and Recommendations Service")
+                .owningTeam("Community Social").ownerEmail("graph-team@manacommunity.app")
+                .deployedServiceName("mana-community-graph").defaultPort(8099).apiVersions(List.of("v1"))
+                .databaseOwnership(DatabaseOwnership.builder().databaseName("mana_graph_db").type("PostgreSQL")
+                        .primaryEntities(List.of("community_nodes", "relationship_edges", "interest_groups", "recommendations")).build())
+                .internalDependencies(List.of("social-service", "professional-network-service"))
+                .externalDependencies(List.of("Neo4j", "Redis", "Kafka"))
+                .gatewayRouteIds(List.of("graph-service")).pathPatterns(List.of("/api/v1/graph/**"))
+                .healthEndpoint("/actuator/health").active(true).build());
+
+        log.info("Initialized ServiceInventory with {} platform service entries", inventory.size());
+    }
+
+    // -------------------------------------------------------------------------
+    // Route Registration
+    // -------------------------------------------------------------------------
+
     public void register(RegisteredRoute route) {
         registry.put(route.getRouteId(), route);
     }
+
+    public void addInventory(ServiceInventoryEntry entry) {
+        inventory.put(entry.getServiceId(), entry);
+    }
+
+    // -------------------------------------------------------------------------
+    // Route Queries
+    // -------------------------------------------------------------------------
 
     public List<RegisteredRoute> getAllRoutes() {
         return new ArrayList<>(registry.values());
@@ -520,6 +856,125 @@ public class RouteRegistry {
         summary.put("routes", getAllRoutes());
         return summary;
     }
+
+    // -------------------------------------------------------------------------
+    // Service Inventory Queries
+    // -------------------------------------------------------------------------
+
+    /** Returns the full machine-readable service inventory. */
+    public Map<String, ServiceInventoryEntry> getMachineReadableInventory() {
+        return Collections.unmodifiableMap(inventory);
+    }
+
+    /** Returns a dependency graph: serviceId -> list of internal dependency serviceIds. */
+    public Map<String, List<String>> getDependencyGraph() {
+        Map<String, List<String>> graph = new LinkedHashMap<>();
+        inventory.forEach((id, entry) -> graph.put(id, entry.getInternalDependencies()));
+        return Collections.unmodifiableMap(graph);
+    }
+
+    /** Returns a map of serviceId -> DatabaseOwnership for all registered services. */
+    public Map<String, DatabaseOwnership> getDatabaseOwnershipMap() {
+        Map<String, DatabaseOwnership> dbMap = new LinkedHashMap<>();
+        inventory.forEach((id, entry) -> dbMap.put(id, entry.getDatabaseOwnership()));
+        return Collections.unmodifiableMap(dbMap);
+    }
+
+    // -------------------------------------------------------------------------
+    // Anomaly Detection
+    // -------------------------------------------------------------------------
+
+    /**
+     * Detects duplicated path patterns across registered routes and port collisions
+     * across service inventory entries.
+     */
+    public List<DuplicateEndpoint> detectDuplicatedEndpoints() {
+        List<DuplicateEndpoint> duplicates = new ArrayList<>();
+
+        // 1. Exact path pattern duplicates across registry routes
+        Map<String, List<String>> patternToRoutes = new LinkedHashMap<>();
+        registry.values().forEach(route -> {
+            String pattern = route.getPathPattern();
+            patternToRoutes.computeIfAbsent(pattern, k -> new ArrayList<>()).add(route.getRouteId());
+        });
+        patternToRoutes.forEach((pattern, routeIds) -> {
+            if (routeIds.size() > 1) {
+                duplicates.add(DuplicateEndpoint.builder()
+                        .pathPattern(pattern)
+                        .conflictingRouteIds(routeIds)
+                        .conflictType("EXACT_DUPLICATE")
+                        .build());
+            }
+        });
+
+        // 2. Port collisions across inventory entries
+        Map<Integer, List<String>> portToServices = new LinkedHashMap<>();
+        inventory.values().forEach(entry ->
+            portToServices.computeIfAbsent(entry.getDefaultPort(), k -> new ArrayList<>()).add(entry.getServiceId())
+        );
+        portToServices.forEach((port, serviceIds) -> {
+            if (serviceIds.size() > 1) {
+                duplicates.add(DuplicateEndpoint.builder()
+                        .pathPattern("PORT:" + port)
+                        .conflictingRouteIds(serviceIds)
+                        .conflictType("PORT_COLLISION")
+                        .build());
+            }
+        });
+
+        return duplicates;
+    }
+
+    /**
+     * Detects gateway routes (known from application.yml) that are not backed by
+     * any registered service inventory entry.
+     */
+    public List<OrphanedRoute> detectOrphanedRoutes() {
+        List<OrphanedRoute> orphans = new ArrayList<>();
+
+        // Routes present in the gateway YAML but not in the registry
+        for (String gatewayRouteId : GATEWAY_ONLY_ROUTE_IDS) {
+            if (!registry.containsKey(gatewayRouteId) && !inventory.containsKey(gatewayRouteId)) {
+                orphans.add(OrphanedRoute.builder()
+                        .routeId(gatewayRouteId)
+                        .pathPattern("unknown - see application.yml")
+                        .reason("NO_REGISTERED_BACKEND")
+                        .build());
+            }
+        }
+
+        // Inventory entries marked inactive but still route-registered
+        inventory.values().stream()
+                .filter(e -> !e.isActive() && registry.containsKey(e.getServiceId()))
+                .forEach(e -> orphans.add(OrphanedRoute.builder()
+                        .routeId(e.getServiceId())
+                        .pathPattern(registry.get(e.getServiceId()).getPathPattern())
+                        .reason("INACTIVE_SERVICE")
+                        .build()));
+
+        return orphans;
+    }
+
+    /**
+     * Generates a combined anomaly report covering duplicates and orphans.
+     */
+    public RegistryAnomalyReport generateAnomalyReport() {
+        List<DuplicateEndpoint> duplicates = detectDuplicatedEndpoints();
+        List<OrphanedRoute> orphans = detectOrphanedRoutes();
+        int total = duplicates.size() + orphans.size();
+        String health = total == 0 ? "HEALTHY" : (total <= 3 ? "WARNING" : "CRITICAL");
+        return RegistryAnomalyReport.builder()
+                .duplicatedEndpoints(duplicates)
+                .orphanedRoutes(orphans)
+                .totalAnomalies(total)
+                .overallHealth(health)
+                .generatedAt(Instant.now())
+                .build();
+    }
+
+    // -------------------------------------------------------------------------
+    // Health Probes
+    // -------------------------------------------------------------------------
 
     /**
      * Probes the health/readiness of a single registered downstream service.

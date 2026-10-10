@@ -18,6 +18,10 @@ class RouteRegistryTest {
         routeRegistry = new RouteRegistry();
     }
 
+    // =========================================================================
+    // Route Registry Core Tests
+    // =========================================================================
+
     @Test
     void testRegistryContainsAllCoreAndPlatformServices() {
         List<RouteRegistry.RegisteredRoute> routes = routeRegistry.getAllRoutes();
@@ -142,5 +146,152 @@ class RouteRegistryTest {
         assertTrue(summary.containsKey("status"));
         assertTrue(summary.containsKey("totalServices"));
         assertEquals(20, summary.get("totalServices"));
+    }
+
+    // =========================================================================
+    // Service Inventory Tests
+    // =========================================================================
+
+    @Test
+    void testMachineReadableInventoryContainsAllServices() {
+        Map<String, RouteRegistry.ServiceInventoryEntry> inv = routeRegistry.getMachineReadableInventory();
+        assertNotNull(inv);
+        assertTrue(inv.size() >= 20, "Inventory should have at least 20 services, found: " + inv.size());
+
+        // Spot check critical services
+        assertTrue(inv.containsKey("auth-service"));
+        assertTrue(inv.containsKey("payment-service"));
+        assertTrue(inv.containsKey("notification-service"));
+        assertTrue(inv.containsKey("emergency-service"));
+        assertTrue(inv.containsKey("graph-service"));
+    }
+
+    @Test
+    void testInventoryEntryHasOwnerAndDatabaseInfo() {
+        Map<String, RouteRegistry.ServiceInventoryEntry> inv = routeRegistry.getMachineReadableInventory();
+
+        RouteRegistry.ServiceInventoryEntry auth = inv.get("auth-service");
+        assertNotNull(auth);
+        assertEquals("Platform Security", auth.getOwningTeam());
+        assertNotNull(auth.getOwnerEmail());
+        assertFalse(auth.getOwnerEmail().isBlank());
+        assertNotNull(auth.getDatabaseOwnership());
+        assertEquals("mana_auth_db", auth.getDatabaseOwnership().getDatabaseName());
+        assertEquals("PostgreSQL", auth.getDatabaseOwnership().getType());
+        assertFalse(auth.getDatabaseOwnership().getPrimaryEntities().isEmpty());
+
+        RouteRegistry.ServiceInventoryEntry payment = inv.get("payment-service");
+        assertNotNull(payment);
+        assertTrue(payment.getExternalDependencies().contains("Stripe") || payment.getExternalDependencies().contains("Razorpay"));
+    }
+
+    @Test
+    void testInventoryApiVersionsPopulated() {
+        Map<String, RouteRegistry.ServiceInventoryEntry> inv = routeRegistry.getMachineReadableInventory();
+        inv.values().forEach(entry ->
+            assertFalse(entry.getApiVersions().isEmpty(),
+                    entry.getServiceId() + " should have at least one API version")
+        );
+    }
+
+    // =========================================================================
+    // Dependency Graph Tests
+    // =========================================================================
+
+    @Test
+    void testDependencyGraphContainsAllServices() {
+        Map<String, List<String>> graph = routeRegistry.getDependencyGraph();
+        assertNotNull(graph);
+        assertTrue(graph.size() >= 20);
+        // notification-service should have NO internal deps (it is a leaf service)
+        List<String> notifDeps = graph.get("notification-service");
+        assertNotNull(notifDeps);
+        assertTrue(notifDeps.isEmpty(), "notification-service should have no internal dependencies");
+    }
+
+    @Test
+    void testPaymentServiceDependsOnWalletAndNotification() {
+        Map<String, List<String>> graph = routeRegistry.getDependencyGraph();
+        List<String> paymentDeps = graph.get("payment-service");
+        assertNotNull(paymentDeps);
+        assertTrue(paymentDeps.contains("wallet-service"));
+        assertTrue(paymentDeps.contains("notification-service"));
+    }
+
+    // =========================================================================
+    // Database Ownership Tests
+    // =========================================================================
+
+    @Test
+    void testDatabaseOwnershipMapContainsAllServices() {
+        Map<String, RouteRegistry.DatabaseOwnership> dbMap = routeRegistry.getDatabaseOwnershipMap();
+        assertNotNull(dbMap);
+        assertTrue(dbMap.size() >= 20);
+
+        // All databases should be PostgreSQL
+        dbMap.values().forEach(db ->
+            assertEquals("PostgreSQL", db.getType(),
+                    db.getDatabaseName() + " should be PostgreSQL")
+        );
+    }
+
+    @Test
+    void testEachServiceHasUniqueDatabase() {
+        Map<String, RouteRegistry.DatabaseOwnership> dbMap = routeRegistry.getDatabaseOwnershipMap();
+        long uniqueDbNames = dbMap.values().stream()
+                .map(RouteRegistry.DatabaseOwnership::getDatabaseName)
+                .distinct().count();
+        assertEquals(dbMap.size(), uniqueDbNames,
+                "Each service should own a unique database; found collisions");
+    }
+
+    // =========================================================================
+    // Anomaly Detection Tests
+    // =========================================================================
+
+    @Test
+    void testOrphanedRoutesDetectsGatewayOnlyRoutes() {
+        List<RouteRegistry.OrphanedRoute> orphans = routeRegistry.detectOrphanedRoutes();
+        assertNotNull(orphans);
+        assertFalse(orphans.isEmpty(), "Should detect orphaned routes from gateway YAML");
+
+        // Known orphans from application.yml without registry backing
+        List<String> orphanIds = orphans.stream()
+                .map(RouteRegistry.OrphanedRoute::getRouteId)
+                .toList();
+        assertTrue(orphanIds.contains("trips-legacy"), "trips-legacy should be flagged as orphaned");
+        assertTrue(orphanIds.contains("parking-monolith"), "parking-monolith should be flagged as orphaned");
+        assertTrue(orphanIds.contains("resident-service"), "resident-service should be flagged as orphaned");
+    }
+
+    @Test
+    void testDuplicateEndpointDetectionFindsNoExactDuplicates() {
+        List<RouteRegistry.DuplicateEndpoint> duplicates = routeRegistry.detectDuplicatedEndpoints();
+        // No two registered routes should have the same path pattern
+        long exactDuplicates = duplicates.stream()
+                .filter(d -> "EXACT_DUPLICATE".equals(d.getConflictType()))
+                .count();
+        assertEquals(0, exactDuplicates, "Registry should have no exact path pattern duplicates");
+    }
+
+    @Test
+    void testAnomalyReportGeneratesSuccessfully() {
+        RouteRegistry.RegistryAnomalyReport report = routeRegistry.generateAnomalyReport();
+        assertNotNull(report);
+        assertNotNull(report.getDuplicatedEndpoints());
+        assertNotNull(report.getOrphanedRoutes());
+        assertNotNull(report.getOverallHealth());
+        assertNotNull(report.getGeneratedAt());
+        assertTrue(report.getTotalAnomalies() >= 0);
+        // With known GATEWAY_ONLY orphans, health should NOT be HEALTHY
+        assertNotEquals("HEALTHY", report.getOverallHealth(),
+                "Platform has known orphaned routes so health should be WARNING or CRITICAL");
+    }
+
+    @Test
+    void testAnomalyReportTotalMatchesSumOfDuplicatesAndOrphans() {
+        RouteRegistry.RegistryAnomalyReport report = routeRegistry.generateAnomalyReport();
+        int expected = report.getDuplicatedEndpoints().size() + report.getOrphanedRoutes().size();
+        assertEquals(expected, report.getTotalAnomalies());
     }
 }

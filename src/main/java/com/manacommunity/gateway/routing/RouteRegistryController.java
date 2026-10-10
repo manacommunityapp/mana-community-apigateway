@@ -5,11 +5,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  * REST endpoint exposing the Gateway Route Registry, service verification contracts,
- * and downstream service health/readiness probe results.
+ * downstream service health/readiness probe results, and the machine-readable
+ * service inventory with anomaly detection capabilities.
  */
 @RestController
 @RequestMapping("/gateway/routes")
@@ -57,5 +59,39 @@ public class RouteRegistryController {
                 .flatMap(routeRegistry::checkServiceHealth)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Returns the full machine-readable service inventory including owners,
+     * API versions, database ownership, dependencies and gateway route IDs.
+     */
+    @GetMapping("/inventory")
+    public Mono<ResponseEntity<Map<String, RouteRegistry.ServiceInventoryEntry>>> getServiceInventory() {
+        return Mono.just(ResponseEntity.ok(routeRegistry.getMachineReadableInventory()));
+    }
+
+    /**
+     * Returns an anomaly report detailing duplicated endpoints, port collisions,
+     * and orphaned routes that lack a registered backend.
+     */
+    @GetMapping("/anomalies")
+    public Mono<ResponseEntity<RouteRegistry.RegistryAnomalyReport>> getAnomalyReport() {
+        return Mono.just(ResponseEntity.ok(routeRegistry.generateAnomalyReport()));
+    }
+
+    /**
+     * Returns the inter-service dependency graph (serviceId -> internal dependency list).
+     */
+    @GetMapping("/dependencies")
+    public Mono<ResponseEntity<Map<String, List<String>>>> getDependencyGraph() {
+        return Mono.just(ResponseEntity.ok(routeRegistry.getDependencyGraph()));
+    }
+
+    /**
+     * Returns database ownership map (serviceId -> database name, type, primary entities).
+     */
+    @GetMapping("/databases")
+    public Mono<ResponseEntity<Map<String, RouteRegistry.DatabaseOwnership>>> getDatabaseOwnership() {
+        return Mono.just(ResponseEntity.ok(routeRegistry.getDatabaseOwnershipMap()));
     }
 }
