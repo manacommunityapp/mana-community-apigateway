@@ -1,0 +1,509 @@
+{
+  "": "https://json-schema.org/draft/2020-12/schema",
+  "version": "1.0.0",
+  "lastUpdated": "2026-10-10T23:12:00Z",
+  "platform": "Mana Community Operating System",
+  "description": "Comprehensive Machine-Readable Inventory of Service Owners, API Versions, Database Ownership, Dependencies, Gateway Routes, and Health Checks",
+  "services": [
+    {
+      "serviceId": "auth-service",
+      "displayName": "Authentication & Identity Service",
+      "owningTeam": "Security & Identity Core",
+      "ownerEmail": "sec-team@manacommunity.com",
+      "deployedServiceName": "mana-community-auth",
+      "defaultPort": 8083,
+      "apiVersions": ["v1", "v2"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_auth",
+        "type": "PostgreSQL",
+        "primaryEntities": ["users", "roles", "user_roles", "sessions", "mfa_devices", "refresh_tokens"]
+      },
+      "internalDependencies": ["notification-service"],
+      "externalDependencies": ["Redis", "Keycloak", "Twilio", "SendGrid"],
+      "gatewayRouteIds": ["auth-service", "identity-service"],
+      "pathPatterns": ["/api/v1/auth/**", "/api/auth/**", "/api/otp/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "sports-service",
+      "displayName": "Sports & Tournament Service",
+      "owningTeam": "Sports & Community Life",
+      "ownerEmail": "sports-team@manacommunity.com",
+      "deployedServiceName": "mana-community-sports",
+      "defaultPort": 8082,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_sports",
+        "type": "PostgreSQL",
+        "primaryEntities": ["tournaments", "fixtures", "teams", "players", "auction_budgets", "matches", "scores"]
+      },
+      "internalDependencies": ["auth-service", "notification-service", "payment-service"],
+      "externalDependencies": ["Redis", "WebSocket STOMP"],
+      "gatewayRouteIds": ["sports-service"],
+      "pathPatterns": ["/api/v1/sports/**", "/api/sports/**", "/api/tournaments/**", "/api/auction/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "events-service",
+      "displayName": "Community Events & Ticketing Service",
+      "owningTeam": "Community Experience",
+      "ownerEmail": "events-team@manacommunity.com",
+      "deployedServiceName": "mana-community-events",
+      "defaultPort": 8096,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_events",
+        "type": "PostgreSQL",
+        "primaryEntities": ["events", "event_registrations", "tickets", "volunteers", "venues", "event_sponsors"]
+      },
+      "internalDependencies": ["auth-service", "notification-service", "payment-service"],
+      "externalDependencies": ["PostgreSQL", "Redis", "Kafka"],
+      "gatewayRouteIds": ["events-service"],
+      "pathPatterns": ["/api/v1/events/**", "/api/events/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "finance-service",
+      "displayName": "Finance & Double-Entry Ledger Service",
+      "owningTeam": "Core Finance & Ledger",
+      "ownerEmail": "finance-team@manacommunity.com",
+      "deployedServiceName": "mana-community-finance",
+      "defaultPort": 8086,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_finance",
+        "type": "PostgreSQL",
+        "primaryEntities": ["accounts", "journal_entries", "ledger_postings", "invoices", "receipts", "billing_cycles"]
+      },
+      "internalDependencies": ["auth-service", "payment-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["finance-service"],
+      "pathPatterns": ["/api/v1/finance/**", "/api/finance/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "payment-service",
+      "displayName": "Payment & Escrow Gateway Service",
+      "owningTeam": "Payment Operations",
+      "ownerEmail": "payments-team@manacommunity.com",
+      "deployedServiceName": "mana-community-payment",
+      "defaultPort": 8087,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_payment",
+        "type": "PostgreSQL",
+        "primaryEntities": ["payment_intents", "transactions", "escrow_holds", "refunds", "payment_methods"]
+      },
+      "internalDependencies": ["auth-service", "notification-service", "finance-service"],
+      "externalDependencies": ["Razorpay", "Stripe", "PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["payment-service"],
+      "pathPatterns": ["/api/v1/payment/**", "/api/v1/payments/**", "/api/payments/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "marketplace-service",
+      "displayName": "Resident Marketplace & Commerce Service",
+      "owningTeam": "Marketplace & Commerce",
+      "ownerEmail": "marketplace-team@manacommunity.com",
+      "deployedServiceName": "mana-community-marketplace",
+      "defaultPort": 8085,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_marketplace",
+        "type": "PostgreSQL",
+        "primaryEntities": ["listings", "orders", "order_items", "cart", "disputes", "seller_profiles"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis", "Elasticsearch"],
+      "gatewayRouteIds": ["marketplace-service"],
+      "pathPatterns": ["/api/v1/marketplace/**", "/api/marketplace/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "notification-service",
+      "displayName": "Notification & Event Dispatch Service",
+      "owningTeam": "Communications & Messaging",
+      "ownerEmail": "notifications-team@manacommunity.com",
+      "deployedServiceName": "mana-community-notification",
+      "defaultPort": 8085,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "mana_notification",
+        "type": "PostgreSQL",
+        "primaryEntities": ["notifications", "delivery_attempts", "templates", "user_preferences", "dlq_messages"]
+      },
+      "internalDependencies": ["auth-service"],
+      "externalDependencies": ["PostgreSQL", "Kafka", "FCM Push", "SendGrid", "Twilio"],
+      "gatewayRouteIds": ["notification-service"],
+      "pathPatterns": ["/api/v1/notifications/**", "/api/v1/notification/**", "/api/notifications/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "food-service",
+      "displayName": "Community Food & Home Chef Service",
+      "owningTeam": "Food & Culinary Experience",
+      "ownerEmail": "food-team@manacommunity.com",
+      "deployedServiceName": "mana-community-food",
+      "defaultPort": 8088,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_food",
+        "type": "PostgreSQL",
+        "primaryEntities": ["menus", "dishes", "food_orders", "kitchen_profiles", "chef_ratings"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["food-service"],
+      "pathPatterns": ["/api/v1/food/**", "/api/food/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "media-service",
+      "displayName": "Media Transcoding & Storage Service",
+      "owningTeam": "Infrastructure & Content",
+      "ownerEmail": "media-team@manacommunity.com",
+      "deployedServiceName": "mana-community-media",
+      "defaultPort": 8084,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "mana_media",
+        "type": "PostgreSQL",
+        "primaryEntities": ["media_assets", "upload_sessions", "transcode_jobs", "thumbnails"]
+      },
+      "internalDependencies": ["auth-service"],
+      "externalDependencies": ["AWS S3 / MinIO", "FFmpeg", "PostgreSQL"],
+      "gatewayRouteIds": ["media-service"],
+      "pathPatterns": ["/api/v1/media/**", "/api/media/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "professional-network-service",
+      "displayName": "Professional Network & Business Directory",
+      "owningTeam": "Resident Social & Career",
+      "ownerEmail": "network-team@manacommunity.com",
+      "deployedServiceName": "mana-community-professional-network",
+      "defaultPort": 8091,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_network",
+        "type": "PostgreSQL",
+        "primaryEntities": ["profiles", "skills", "business_listings", "job_postings", "endorsements"]
+      },
+      "internalDependencies": ["auth-service", "media-service"],
+      "externalDependencies": ["PostgreSQL", "Elasticsearch"],
+      "gatewayRouteIds": ["professional-network-service"],
+      "pathPatterns": ["/api/v1/professional-network/**", "/api/professional-network/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "booking-service",
+      "displayName": "Amenity & Resource Booking Service",
+      "owningTeam": "Facility & Amenities",
+      "ownerEmail": "facility-team@manacommunity.com",
+      "deployedServiceName": "mana-community-resource-booking",
+      "defaultPort": 8089,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_booking",
+        "type": "PostgreSQL",
+        "primaryEntities": ["amenities", "slots", "bookings", "deposits", "cancellations"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["booking-service"],
+      "pathPatterns": ["/api/v1/booking/**", "/api/booking/**", "/api/resource-booking/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "services-platform-service",
+      "displayName": "Home Services & Platform Dispatch Service",
+      "owningTeam": "Home Services Core",
+      "ownerEmail": "services-team@manacommunity.com",
+      "deployedServiceName": "mana-community-services-platform",
+      "defaultPort": 8087,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_services",
+        "type": "PostgreSQL",
+        "primaryEntities": ["service_requests", "service_catalog", "providers", "work_orders", "customer_reviews"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["services-platform-service"],
+      "pathPatterns": ["/api/v1/services/**", "/api/services/**", "/api/services-platform/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "social-service",
+      "displayName": "Community Social Feed & Discussions Service",
+      "owningTeam": "Social Engagement",
+      "ownerEmail": "social-team@manacommunity.com",
+      "deployedServiceName": "mana-community-social",
+      "defaultPort": 8092,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_social",
+        "type": "PostgreSQL",
+        "primaryEntities": ["feed_posts", "comments", "reactions", "moderation_flags", "channels"]
+      },
+      "internalDependencies": ["auth-service", "media-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis", "Kafka"],
+      "gatewayRouteIds": ["social-service"],
+      "pathPatterns": ["/api/v1/social/**", "/api/social/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "vendor-service",
+      "displayName": "Vendor KYC & Work Order Management Service",
+      "owningTeam": "Vendor Management",
+      "ownerEmail": "vendor-team@manacommunity.com",
+      "deployedServiceName": "mana-community-vendor",
+      "defaultPort": 8090,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_vendor",
+        "type": "PostgreSQL",
+        "primaryEntities": ["vendors", "kyc_documents", "contracts", "vendor_staff", "sla_audits"]
+      },
+      "internalDependencies": ["auth-service", "media-service"],
+      "externalDependencies": ["PostgreSQL"],
+      "gatewayRouteIds": ["vendor-service"],
+      "pathPatterns": ["/api/v1/vendor/**", "/api/vendor/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "wallet-service",
+      "displayName": "Community Prepaid Wallet Service",
+      "owningTeam": "FinTech & Wallet",
+      "ownerEmail": "wallet-team@manacommunity.com",
+      "deployedServiceName": "mana-community-wallet",
+      "defaultPort": 8094,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_wallet",
+        "type": "PostgreSQL",
+        "primaryEntities": ["wallets", "wallet_transactions", "qr_tokens", "spending_limits", "topup_logs"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "finance-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["wallet-service"],
+      "pathPatterns": ["/api/v1/wallet/**", "/api/wallet/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "emergency-service",
+      "displayName": "Resident Emergency SOS & Incident Service",
+      "owningTeam": "Safety & Security",
+      "ownerEmail": "safety-team@manacommunity.com",
+      "deployedServiceName": "mana-community-emergency",
+      "defaultPort": 8095,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_emergency",
+        "type": "PostgreSQL",
+        "primaryEntities": ["sos_alerts", "incidents", "guard_dispatches", "incident_logs", "emergency_contacts"]
+      },
+      "internalDependencies": ["auth-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "WebSocket STOMP", "SMS Gateway"],
+      "gatewayRouteIds": ["emergency-service"],
+      "pathPatterns": ["/api/v1/emergency/**", "/api/emergency/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "group-marketplace-service",
+      "displayName": "Bulk Group Buying & Quorum Deals Service",
+      "owningTeam": "Marketplace & Commerce",
+      "ownerEmail": "groupbuy-team@manacommunity.com",
+      "deployedServiceName": "mana-community-group-marketplace",
+      "defaultPort": 8096,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_group_marketplace",
+        "type": "PostgreSQL",
+        "primaryEntities": ["group_deals", "orders", "quorum_counters", "preauth_holds", "deal_milestones"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["group-marketplace-service"],
+      "pathPatterns": ["/api/v1/group-marketplace/**", "/api/group-marketplace/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "travel-service",
+      "displayName": "Resident Travel, Carpool & Shuttle Service",
+      "owningTeam": "Mobility & Transport",
+      "ownerEmail": "travel-team@manacommunity.com",
+      "deployedServiceName": "mana-community-travel",
+      "defaultPort": 8097,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_travel",
+        "type": "PostgreSQL",
+        "primaryEntities": ["trips", "carpools", "shuttle_routes", "schedules", "tickets", "stops"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["travel-service"],
+      "pathPatterns": ["/api/v1/travel/**", "/api/travel/**", "/api/v1/trips/**", "/api/trips/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "helpdesk-service",
+      "displayName": "Community Facility Helpdesk & Maintenance",
+      "owningTeam": "Operations & Facility",
+      "ownerEmail": "helpdesk-team@manacommunity.com",
+      "deployedServiceName": "mana-community-helpdesk",
+      "defaultPort": 8098,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_helpdesk",
+        "type": "PostgreSQL",
+        "primaryEntities": ["tickets", "ticket_categories", "sla_policies", "technicians", "work_logs"]
+      },
+      "internalDependencies": ["auth-service", "media-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "Redis"],
+      "gatewayRouteIds": ["helpdesk-service"],
+      "pathPatterns": ["/api/v1/helpdesk/**", "/api/helpdesk/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "graph-service",
+      "displayName": "Community Social Graph & Recommendation Service",
+      "owningTeam": "Data Science & AI",
+      "ownerEmail": "graph-team@manacommunity.com",
+      "deployedServiceName": "mana-community-graph",
+      "defaultPort": 8099,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_graph",
+        "type": "PostgreSQL",
+        "primaryEntities": ["graph_relationships", "entity_nodes", "recommendation_caches"]
+      },
+      "internalDependencies": ["auth-service"],
+      "externalDependencies": ["PostgreSQL", "Neo4j / RedisGraph"],
+      "gatewayRouteIds": ["graph-service"],
+      "pathPatterns": ["/api/v1/graph/**", "/api/graph/**", "/community-graph/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "governance-service",
+      "displayName": "Community Governance & Voting Service",
+      "owningTeam": "Governance & Management",
+      "ownerEmail": "governance-team@manacommunity.com",
+      "deployedServiceName": "mana-community-governance",
+      "defaultPort": 8103,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_governance",
+        "type": "PostgreSQL",
+        "primaryEntities": ["resolutions", "polls", "votes", "audit_ballots", "quorum_rules"]
+      },
+      "internalDependencies": ["auth-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL"],
+      "gatewayRouteIds": ["governance-service"],
+      "pathPatterns": ["/api/v1/governance/**", "/api/governance/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "health-service",
+      "displayName": "Community Health & Clinic Teleconsult Service",
+      "owningTeam": "Healthcare & Wellness",
+      "ownerEmail": "health-team@manacommunity.com",
+      "deployedServiceName": "mana-community-health",
+      "defaultPort": 8101,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_health",
+        "type": "PostgreSQL",
+        "primaryEntities": ["appointments", "prescriptions", "doctors", "patient_records", "consultation_logs"]
+      },
+      "internalDependencies": ["auth-service", "payment-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "WebRTC Video"],
+      "gatewayRouteIds": ["healthcare-service"],
+      "pathPatterns": ["/api/v1/healthcare/**", "/api/v1/health/**", "/api/health/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "feedback-service",
+      "displayName": "Community Feedback, Surveys & NPS Service",
+      "owningTeam": "Community Experience",
+      "ownerEmail": "feedback-team@manacommunity.com",
+      "deployedServiceName": "mana-community-feedback",
+      "defaultPort": 8102,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_feedback",
+        "type": "PostgreSQL",
+        "primaryEntities": ["surveys", "responses", "feedback_entries", "nps_scores", "sentiment_tags"]
+      },
+      "internalDependencies": ["auth-service"],
+      "externalDependencies": ["PostgreSQL"],
+      "gatewayRouteIds": ["feedback-service"],
+      "pathPatterns": ["/api/v1/feedback/**", "/api/feedback/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "parking-service",
+      "displayName": "Smart Parking & ANPR Spot Management Service",
+      "owningTeam": "Smart Infrastructure",
+      "ownerEmail": "parking-team@manacommunity.com",
+      "deployedServiceName": "mana-community-parking",
+      "defaultPort": 8100,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_parking",
+        "type": "PostgreSQL",
+        "primaryEntities": ["parking_spots", "allocations", "anpr_events", "gate_logs", "permits"]
+      },
+      "internalDependencies": ["auth-service", "notification-service"],
+      "externalDependencies": ["PostgreSQL", "MQTT / Edge ANPR Cameras"],
+      "gatewayRouteIds": ["parking-monolith", "parking-service"],
+      "pathPatterns": ["/api/v1/parking/**", "/api/parking/**", "/parking/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    },
+    {
+      "serviceId": "ai-concierge-service",
+      "displayName": "AI Concierge & Resident Assistant Service",
+      "owningTeam": "Data Science & AI",
+      "ownerEmail": "ai-team@manacommunity.com",
+      "deployedServiceName": "mana-community-ai-concierge",
+      "defaultPort": 8105,
+      "apiVersions": ["v1"],
+      "databaseOwnership": {
+        "databaseName": "manacommunity_ai",
+        "type": "PostgreSQL",
+        "primaryEntities": ["chat_sessions", "messages", "embeddings", "intent_logs"]
+      },
+      "internalDependencies": ["auth-service", "graph-service"],
+      "externalDependencies": ["OpenAI / Gemini LLM API", "pgvector", "Redis"],
+      "gatewayRouteIds": ["ai-service"],
+      "pathPatterns": ["/api/v1/ai/**", "/api/ai/**"],
+      "healthEndpoint": "/actuator/health",
+      "active": true
+    }
+  ]
+}

@@ -266,7 +266,10 @@ public class RouteRegistry {
                         "/api/finance/credit-notes",
                         "/api/finance/debit-notes",
                         "/api/finance/billing-cycles",
-                        "/api/finance/budget"
+                        "/api/finance/budget",
+                        "/api/finance/analytics/unified",
+                        "/api/finance/reports/**",
+                        "/api/finance/dashboard/**"
                 ))
                 .active(true)
                 .build());
@@ -627,7 +630,7 @@ public class RouteRegistry {
                         .primaryEntities(List.of("ledger_entries", "invoices", "receipts", "billing_cycles", "budgets")).build())
                 .internalDependencies(List.of("payment-service", "notification-service"))
                 .externalDependencies(List.of("Redis", "Kafka"))
-                .gatewayRouteIds(List.of("finance-service")).pathPatterns(List.of("/api/v1/finance/**"))
+                .gatewayRouteIds(List.of("finance-service")).pathPatterns(List.of("/api/v1/finance/**", "/api/finance/**"))
                 .healthEndpoint("/actuator/health").active(true).build());
 
         addInventory(ServiceInventoryEntry.builder()
