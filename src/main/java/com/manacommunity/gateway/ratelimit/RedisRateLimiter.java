@@ -10,7 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Slf4j
-@Component
+@Component("customRedisRateLimiter")
 public class RedisRateLimiter {
 
     private static final String RATE_LIMIT_KEY_PREFIX = "rate_limit:";

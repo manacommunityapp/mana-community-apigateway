@@ -38,4 +38,28 @@ class RateLimitingTest {
         assertThat(rate).isEqualTo(5);
         assertThat(duration).isEqualTo(60);
     }
+
+    @Test
+    void rateLimitConfig_patternMatching() {
+        RateLimitConfig config = new RateLimitConfig();
+        config.setEnabled(true);
+        config.setDefaultRate(100);
+        config.setDefaultDuration(60);
+        config.setEndpoints(Map.of(
+                "/api/v*/auth/login", "5,60",
+                "/api/v*/finance/payment/**", "20,60"
+        ));
+
+        int[] loginLimits = config.parseEndpointConfig("/api/v1/auth/login");
+        assertThat(loginLimits[0]).isEqualTo(5);
+        assertThat(loginLimits[1]).isEqualTo(60);
+
+        int[] paymentLimits = config.parseEndpointConfig("/api/v2/finance/payment/checkout");
+        assertThat(paymentLimits[0]).isEqualTo(20);
+        assertThat(paymentLimits[1]).isEqualTo(60);
+
+        int[] defaultLimits = config.parseEndpointConfig("/api/v1/resident/list");
+        assertThat(defaultLimits[0]).isEqualTo(100);
+        assertThat(defaultLimits[1]).isEqualTo(60);
+    }
 }

@@ -23,8 +23,26 @@ public class RateLimitConfig {
      */
     private Map<String, String> endpoints = new HashMap<>();
 
+    private static final org.springframework.util.AntPathMatcher PATH_MATCHER = new org.springframework.util.AntPathMatcher();
+
     public int[] parseEndpointConfig(String path) {
+        if (path == null || path.isBlank() || endpoints == null || endpoints.isEmpty()) {
+            return new int[]{defaultRate, defaultDuration};
+        }
+
+        // Direct lookup first
         String config = endpoints.get(path);
+
+        // Pattern matching if direct lookup did not match
+        if (config == null) {
+            for (Map.Entry<String, String> entry : endpoints.entrySet()) {
+                if (PATH_MATCHER.match(entry.getKey(), path)) {
+                    config = entry.getValue();
+                    break;
+                }
+            }
+        }
+
         if (config == null || config.isBlank()) {
             return new int[]{defaultRate, defaultDuration};
         }

@@ -27,4 +27,7 @@ public class GatewaySecurityProperties {
             "/fallback/**",
             "/gateway/**"
     ));
+
+    private java.util.Map<String, List<String>> roleMappings = new java.util.LinkedHashMap<>();
+    private java.util.Map<String, List<String>> permissionMappings = new java.util.LinkedHashMap<>();
 }

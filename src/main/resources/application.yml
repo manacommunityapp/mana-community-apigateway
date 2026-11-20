@@ -525,6 +525,10 @@ gateway:
       - /webjars/**
       - /fallback/**
       - /gateway/routes/**
+    role-mappings:
+      "/api/v*/governance/admin/**":
+        - ADMIN
+        - SUPER_ADMIN
 
   # ── Tenant Configuration ───────────────────────────────────────────
   tenant:

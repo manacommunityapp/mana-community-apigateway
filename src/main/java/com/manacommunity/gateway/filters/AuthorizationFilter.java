@@ -6,11 +6,14 @@ import com.manacommunity.gateway.authorization.PermissionEvaluator;
 import com.manacommunity.gateway.authorization.PolicyAuthorization;
 import com.manacommunity.gateway.constants.GatewayConstants;
 import com.manacommunity.gateway.dto.ErrorResponse;
+import com.manacommunity.gateway.security.GatewaySecurityProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.route.Route;
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpStatus;
@@ -23,8 +26,10 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Evaluates authorization policies for protected endpoints. Uses
@@ -46,6 +51,7 @@ public class AuthorizationFilter implements GlobalFilter, Ordered {
 
     private final PermissionEvaluator permissionEvaluator;
     private final PolicyAuthorization policyAuthorization;
+    private final GatewaySecurityProperties securityProperties;
 
     @Value("${gateway.security.public-paths:/api/v*/auth/login,/api/v*/auth/register,/actuator/health}")
     private List<String> publicPaths;
@@ -71,16 +77,15 @@ public class AuthorizationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        // Evaluate authorization policy
-        // Route-specific roles/permissions can be extended via configuration;
-        // the default policy allows any authenticated user to proceed.
-        List<String> requiredRoles = Collections.emptyList();
-        List<String> requiredPermissions = Collections.emptyList();
+        // Dynamically evaluate authorization policy based on route metadata or path mappings
+        List<String> requiredRoles = resolveRequiredRoles(exchange, requestPath);
+        List<String> requiredPermissions = resolveRequiredPermissions(exchange, requestPath);
 
         boolean authorized = policyAuthorization.evaluate(exchange, requiredRoles, requiredPermissions);
 
         if (!authorized) {
-            log.warn("Access denied for user [{}] on path [{}]", userId, requestPath);
+            log.warn("Access denied for user [{}] on path [{}]. Required roles: {}, required permissions: {}",
+                    userId, requestPath, requiredRoles, requiredPermissions);
             return writeErrorResponse(exchange, HttpStatus.FORBIDDEN,
                     "You do not have permission to access this resource");
         }
@@ -88,11 +93,64 @@ public class AuthorizationFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange);
     }
 
-    private boolean isPublicPath(String requestPath) {
-        if (publicPaths == null || publicPaths.isEmpty()) {
-            return false;
+    private List<String> resolveRequiredRoles(ServerWebExchange exchange, String requestPath) {
+        // 1. Check Route metadata if available
+        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+        if (route != null && route.getMetadata() != null) {
+            Object rolesMeta = route.getMetadata().get("roles");
+            if (rolesMeta instanceof Collection<?> col) {
+                return col.stream().map(Object::toString).toList();
+            } else if (rolesMeta instanceof String str && !str.isBlank()) {
+                return List.of(str.split(","));
+            }
         }
-        return publicPaths.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
+
+        // 2. Check path-based role mappings configured in securityProperties
+        if (securityProperties != null && securityProperties.getRoleMappings() != null) {
+            for (Map.Entry<String, List<String>> entry : securityProperties.getRoleMappings().entrySet()) {
+                if (PATH_MATCHER.match(entry.getKey(), requestPath)) {
+                    return entry.getValue();
+                }
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private List<String> resolveRequiredPermissions(ServerWebExchange exchange, String requestPath) {
+        // 1. Check Route metadata if available
+        Route route = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ROUTE_ATTR);
+        if (route != null && route.getMetadata() != null) {
+            Object permMeta = route.getMetadata().get("permissions");
+            if (permMeta instanceof Collection<?> col) {
+                return col.stream().map(Object::toString).toList();
+            } else if (permMeta instanceof String str && !str.isBlank()) {
+                return List.of(str.split(","));
+            }
+        }
+
+        // 2. Check path-based permission mappings configured in securityProperties
+        if (securityProperties != null && securityProperties.getPermissionMappings() != null) {
+            for (Map.Entry<String, List<String>> entry : securityProperties.getPermissionMappings().entrySet()) {
+                if (PATH_MATCHER.match(entry.getKey(), requestPath)) {
+                    return entry.getValue();
+                }
+            }
+        }
+
+        return Collections.emptyList();
+    }
+
+    private boolean isPublicPath(String requestPath) {
+        if (securityProperties != null && securityProperties.getPublicPaths() != null && !securityProperties.getPublicPaths().isEmpty()) {
+            if (securityProperties.getPublicPaths().stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath))) {
+                return true;
+            }
+        }
+        if (publicPaths != null && !publicPaths.isEmpty()) {
+            return publicPaths.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, requestPath));
+        }
+        return false;
     }
 
     private Mono<Void> writeErrorResponse(ServerWebExchange exchange, HttpStatus status, String message) {
